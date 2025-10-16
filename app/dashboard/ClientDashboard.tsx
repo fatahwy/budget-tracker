@@ -77,14 +77,6 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
     setConfirmModal({ type: 'delete', trx: target ?? undefined });
   };
 
-  const startEdit = (trx: Transaction) => {
-    setEditingId(trx.id);
-    setEditedTotal(trx.total);
-    const dateVal = trx.date_input ? (typeof trx.date_input === 'string' ? trx.date_input : new Date(trx.date_input).toISOString().slice(0, 10)) : "";
-    setEditedDateInput(dateVal);
-    setEditedAccountId(trx.account?.id ?? "");
-  };
-
   const saveEdit = async (trx: Transaction) => {
     setConfirmModal({ type: 'save', trx });
   };

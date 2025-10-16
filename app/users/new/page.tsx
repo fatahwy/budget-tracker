@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { CreateUserForm } from '../CreateUserForm';
 
 export default function CreateUserPage() {
-  const handleUserCreated = (user: any) => {
+  const handleUserCreated = () => {
     if (typeof window !== 'undefined') {
       window.location.assign('/users');
     }

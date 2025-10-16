@@ -2,7 +2,7 @@ import path from 'path';
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  webpack(config: any) {
+  webpack(config) {
     config.resolve = {
       ...(config.resolve || {}),
       alias: {

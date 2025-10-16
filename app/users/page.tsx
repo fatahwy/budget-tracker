@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-
 
 type User = {
   id: string;
@@ -56,7 +54,7 @@ export default function UsersPage() {
   };
 
   const saveEdit = async (user: User) => {
-    const payload: any = {};
+    const payload: { email?: string; password?: string } = {};
     if (editingEmail && editingEmail !== user.email) payload.email = editingEmail;
     if (editingPassword) payload.password = editingPassword;
     if (!payload.email && !payload.password) {

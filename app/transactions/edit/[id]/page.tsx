@@ -7,6 +7,7 @@ export default async function EditTransactionPage({ params }: { params: { id: st
     const prisma = new PrismaClient();
     const session = await getServerSession(authOptions);
     const clientId = session?.user?.clientId;
+    const accountId = session?.user?.defaultAccountId;
 
     if (!clientId) {
         return <div>Error: Not logged in</div>;
@@ -15,7 +16,7 @@ export default async function EditTransactionPage({ params }: { params: { id: st
     const trxId = params?.id;
     const trx = await prisma.trx.findUnique({ where: { id: trxId }, include: { account: true, category: true } });
 
-    const categories = await prisma.category.findMany({ where: { client_id: clientId } });
+    const categories = await prisma.category.findMany({ where: { account_id: accountId } });
 
     if (!trx) {
         return <div>Transaction not found</div>;

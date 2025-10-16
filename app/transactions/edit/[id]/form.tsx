@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import CreatableSelect from 'react-select/creatable';
-import { Account, Category } from '@prisma/client';
+import { Category } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -31,7 +30,7 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
     setSuccess(null);
     setLoading(true);
 
-    const payload: any = {
+    const payload = {
       id: trxId,
       total,
       dateInput,

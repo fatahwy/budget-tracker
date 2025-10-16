@@ -10,7 +10,6 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean; children?: React
 };
 
 export const DropdownMenuContent: React.FC<{ align?: 'start' | 'end'; children?: React.ReactNode }> = ({
-  align,
   children
 }) => {
   return <div>{children}</div>;

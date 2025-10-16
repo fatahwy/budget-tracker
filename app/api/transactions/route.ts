@@ -83,7 +83,7 @@ export async function PATCH(req: Request) {
 
     const oldTotal = existing?.total ?? 0;
     const oldIsExpense = existing?.is_expense ?? false;
-    const oldAccountId = existing?.account_id ?? (existing?.account as any)?.id;
+    const oldAccountId = existing?.account_id ?? (existing?.account as { id: string } | undefined)?.id;
 
     const newTotal = total ?? oldTotal;
     const newDate = dateInput ? new Date(dateInput) : existing?.date_input;
@@ -99,17 +99,17 @@ export async function PATCH(req: Request) {
     });
 
     // Balance adjustments
-    const oldAccountBal: any = await prisma.account.findUnique({ where: { id: oldAccountId } });
+    const oldAccountBal = await prisma.account.findUnique({ where: { id: oldAccountId } });
 
     const oldDelta = oldIsExpense ? -oldTotal : oldTotal;
     const newIsExpense = existing?.is_expense ?? false;
     const newDeltaValue = newIsExpense ? -newTotal : newTotal;
 
-    const oldBalanceValue = (oldAccountBal as any)?.balance ?? 0;
+    const oldBalanceValue = oldAccountBal?.balance ?? 0;
 
     const diff = newDeltaValue - oldDelta;
     const updatedBalance = oldBalanceValue + diff;
-    await prisma.account.update({ where: { id: oldAccountId }, data: { balance: updatedBalance } } as any);
+    await prisma.account.update({ where: { id: oldAccountId }, data: { balance: updatedBalance } });
 
     return NextResponse.json({ message: 'Transaction updated', transaction: updated }, { status: 200 });
   } catch (error) {

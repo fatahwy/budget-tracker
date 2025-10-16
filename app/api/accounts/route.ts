@@ -59,11 +59,14 @@ export async function GET(req: Request) {
       include: { trx: true },
     });
 
-    const accounts = accountsRaw.map((a: any) => ({
+    type TrxInfo = { is_expense: boolean; total: number; };
+    type AccountRaw = { id: string; name: string; created_at?: Date; trx?: TrxInfo[] };
+
+    const accounts = accountsRaw.map((a: AccountRaw) => ({
       id: a.id,
       name: a.name,
       created_at: a.created_at,
-      balance: (a.trx || []).reduce((sum: number, t: any) => sum + (t.is_expense ? -t.total : t.total), 0)
+      balance: (a.trx ?? []).reduce((sum: number, t: TrxInfo) => sum + (t.is_expense ? -t.total : t.total), 0)
     }));
 
     return NextResponse.json({ accounts }, { status: 200 });
@@ -90,7 +93,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ message: 'Account not found' }, { status: 404 });
     }
 
-    const data: any = {};
+    const data: { name?: string } = {};
     if (name !== undefined) data.name = name;
 
     const updated = await prisma.account.update({ where: { id }, data });

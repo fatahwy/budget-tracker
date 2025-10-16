@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import bcrypt from 'bcrypt';
@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ message: 'No fields to update' }, { status: 400 });
     }
 
-    const data: any = {};
+    const data: Prisma.UserUpdateInput = {};
     if (email) data.email = email;
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,7 +81,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const hasTransactions = await prisma.trx.findFirst({ where: { user_input_id: id } as any });
+    const hasTransactions = await prisma.trx.findFirst({ where: { user_input_id: id } });
     if (hasTransactions) {
       return NextResponse.json({ message: 'User has associated transactions' }, { status: 400 });
     }

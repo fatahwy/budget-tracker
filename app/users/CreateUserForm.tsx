@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export function CreateUserForm({ onUserCreated }: { onUserCreated: (user: any) => void }) {
+export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void }) {
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +22,7 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: (user: any) =
       const data = await res.json();
 
       if (res.ok) {
-        onUserCreated(data);
+        onUserCreated();
         setUsername('');
         setEmail('');
         setPassword('');

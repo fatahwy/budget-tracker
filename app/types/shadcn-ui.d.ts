@@ -1,9 +1,9 @@
 declare module '@shadcn/ui' {
-  export const DropdownMenu: React.FC<any>;
-  export const DropdownMenuTrigger: React.FC<any>;
-  export const DropdownMenuContent: React.FC<any>;
-  export const DropdownMenuItem: React.FC<any>;
-  export const DropdownMenuSeparator: React.FC<any>;
-  const _default: any;
+  export const DropdownMenu: React.FC;
+  export const DropdownMenuTrigger: React.FC;
+  export const DropdownMenuContent: React.FC;
+  export const DropdownMenuItem: React.FC;
+  export const DropdownMenuSeparator: React.FC;
+  const _default;
   export default _default;
 }
