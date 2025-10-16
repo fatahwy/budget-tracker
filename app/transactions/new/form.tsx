@@ -4,14 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import CreatableSelect from 'react-select/creatable';
-import { Account, Category } from '@prisma/client';
+import { Category } from '@prisma/client';
 
 interface NewTransactionFormProps {
-  accounts: Account[];
   categories: Category[];
 }
 
-export function NewTransactionForm({ accounts, categories }: NewTransactionFormProps) {
+export function NewTransactionForm({ categories }: NewTransactionFormProps) {
   const [total, setTotal] = useState(0);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [note, setNote] = useState('');

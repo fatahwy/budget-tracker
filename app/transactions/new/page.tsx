@@ -5,33 +5,30 @@ import { authOptions } from '../../api/auth/[...nextauth]/route';
 
 const prisma = new PrismaClient();
 
-async function getFormData(clientId: string) {
-  const accounts = await prisma.account.findMany({
-    where: { client_id: clientId },
-  });
-
+async function getFormData(accountId: string) {
   const categories = await prisma.category.findMany({
-    where: { client_id: clientId },
+    where: { account_id: accountId },
   });
 
-  return { accounts, categories };
+  return { categories };
 }
 
 export default async function NewTransactionPage() {
   const session = await getServerSession(authOptions);
   const clientId = session?.user?.clientId;
+  const accountId = session?.user?.defaultAccountId;
 
   if (!clientId) {
     return <div>Error: Not logged in</div>;
   }
 
-  const { accounts, categories } = await getFormData(clientId);
+  const { categories } = await getFormData(accountId);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
+    <div className="flex justify-center pt-10">
+      <div className="w-full max-w-md rounded-lg p-8 shadow-md">
         <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Create a New Transaction</h1>
-        <NewTransactionForm accounts={accounts} categories={categories} />
+        <NewTransactionForm categories={categories} />
       </div>
     </div>
   );

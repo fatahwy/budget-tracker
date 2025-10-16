@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -17,7 +17,7 @@ type User = {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingEmail, setEditingEmail] = useState<string>('');
@@ -37,6 +37,11 @@ export default function UsersPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (error.length > 0) {
+      setTimeout(() => setError(''), 2000);
+    }
+  }, [error])
 
   const startEdit = (u: User) => {
     setEditingId(u.id);

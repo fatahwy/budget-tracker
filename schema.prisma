@@ -13,7 +13,6 @@ model Client {
 
   users      User[]     @relation("ClientUsers")
   accounts   Account[]  @relation("ClientAccounts")
-  categories Category[] @relation("ClientCategories")
 
   @@map("clients")
 }
@@ -44,6 +43,7 @@ model Account {
   client Client  @relation("ClientAccounts", fields: [client_id], references: [id])
   userId String?
   user   User?   @relation("UserAccounts", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  categories Category[] @relation("AccountCategories")
 
   trx             Trx[]  @relation("TrxAccount")
   defaultAccounts User[] @relation("UserDefaultAccount")
@@ -54,9 +54,9 @@ model Account {
 model Category {
   id        String @id @default(auto()) @map("_id") @db.ObjectId
   name      String
-  client_id String
+  account_id String
 
-  client Client @relation("ClientCategories", fields: [client_id], references: [id])
+  account Account @relation("AccountCategories", fields: [account_id], references: [id])
   trx    Trx[]  @relation("TrxCategory")
 
   @@map("categories")

@@ -39,7 +39,7 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: (user: any) =
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 mb-6">
+    <form onSubmit={handleSubmit} className="space-y-2 mb-3">
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Username</label>
         <input

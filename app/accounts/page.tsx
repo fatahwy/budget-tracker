@@ -114,7 +114,7 @@ export default function AccountsCRUD() {
   return (
     <div className="container mx-auto p-6">
       <Card>
-        <CardHeader className="flex items-center justify-between">
+        <CardHeader>
           <CardTitle>Accounts</CardTitle>
         </CardHeader>
         <CardContent>

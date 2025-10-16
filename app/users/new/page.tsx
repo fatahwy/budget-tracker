@@ -12,13 +12,15 @@ export default function CreateUserPage() {
   };
 
   return (
-    <Card className="container mx-auto p-6">
-      <CardHeader className="mb-4">
-        <CardTitle>Create User</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <CreateUserForm onUserCreated={handleUserCreated} />
-      </CardContent>
-    </Card>
+    <div className="container mx-auto p-6">
+      <Card className="container mx-auto">
+        <CardHeader>
+          <CardTitle>Create User</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CreateUserForm onUserCreated={handleUserCreated} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

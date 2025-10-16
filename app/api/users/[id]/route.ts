@@ -44,14 +44,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const { username, email, password } = await request.json();
+    const { email, password } = await request.json();
 
-    if (!username && !email && !password) {
+    if (!email && !password) {
       return NextResponse.json({ message: 'No fields to update' }, { status: 400 });
     }
 
     const data: any = {};
-    if (username) data.username = username;
     if (email) data.email = email;
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);

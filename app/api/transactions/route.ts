@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 
@@ -29,33 +29,31 @@ export async function POST(req: Request) {
       const newCategory = await prisma.category.create({
         data: {
           name: categoryId,
-          client: { connect: { id: clientId } },
-        } as any,
+          account: { connect: { id: accountId } },
+        } as Prisma.CategoryCreateInput,
       });
       finalCategoryId = newCategory.id;
     }
 
-    const trxData: any = {
+    const trxData: Prisma.TrxCreateInput = {
       total,
       is_expense: isExpense,
       date_input: new Date(dateInput),
-      account_id: accountId,
-      category_id: finalCategoryId,
-      user_input_id: userId,
+      account: { connect: { id: accountId } },
+      category: { connect: { id: finalCategoryId } },
+      user: { connect: { id: userId } },
+      note: note ?? undefined,
     };
-    if (note !== undefined && note !== null) {
-      trxData.note = note;
-    }
     const transaction = await prisma.trx.create({
       data: trxData,
     });
 
     // Update account balance based on the new transaction
-    const accountForUpdate = await prisma.account.findUnique({ where: { id: accountId } }) as any;
+    const accountForUpdate = await prisma.account.findUnique({ where: { id: accountId } }) as unknown as { balance?: number } | null;
     if (accountForUpdate) {
-      const currentBalance = (accountForUpdate as any).balance ?? 0;
+      const currentBalance = (accountForUpdate as { balance?: number } | null)?.balance ?? 0;
       const newBalance = currentBalance + (isExpense ? -total : total);
-      await prisma.account.update({ where: { id: accountId }, data: { balance: newBalance } } as any);
+      await prisma.account.update({ where: { id: accountId }, data: { balance: newBalance } } as unknown as { where: { id: string }; data: { balance: number } });
     }
 
     return NextResponse.json({ message: 'Transaction created successfully', transaction }, { status: 201 });
@@ -75,7 +73,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const { id, total, dateInput, accountId } = await req.json();
+    const { id, total, dateInput, note } = await req.json();
 
     if (!id) {
       return NextResponse.json({ message: 'Missing required field: id' }, { status: 400 });
@@ -89,38 +87,29 @@ export async function PATCH(req: Request) {
 
     const newTotal = total ?? oldTotal;
     const newDate = dateInput ? new Date(dateInput) : existing?.date_input;
-    const newAccountId = accountId ?? oldAccountId;
 
     const updated = await prisma.trx.update({
       where: { id },
       data: {
         total: newTotal,
         date_input: newDate ? new Date(newDate) : undefined,
-        account_id: newAccountId,
+        account_id: oldAccountId,
+        note: note ?? undefined,
       },
     });
 
     // Balance adjustments
     const oldAccountBal: any = await prisma.account.findUnique({ where: { id: oldAccountId } });
-    const newAccountBal: any = await prisma.account.findUnique({ where: { id: newAccountId } });
 
     const oldDelta = oldIsExpense ? -oldTotal : oldTotal;
     const newIsExpense = existing?.is_expense ?? false;
     const newDeltaValue = newIsExpense ? -newTotal : newTotal;
 
     const oldBalanceValue = (oldAccountBal as any)?.balance ?? 0;
-    const newBalanceValue = (newAccountBal as any)?.balance ?? 0;
 
-    if (oldAccountId === newAccountId) {
-      const diff = newDeltaValue - oldDelta;
-      const updatedBalance = oldBalanceValue + diff;
-      await prisma.account.update({ where: { id: oldAccountId }, data: { balance: updatedBalance } } as any);
-    } else {
-      const updatedOldBalance = oldBalanceValue - oldDelta;
-      const updatedNewBalance = newBalanceValue + newDeltaValue;
-      await prisma.account.update({ where: { id: oldAccountId }, data: { balance: updatedOldBalance } } as any);
-      await prisma.account.update({ where: { id: newAccountId }, data: { balance: updatedNewBalance } } as any);
-    }
+    const diff = newDeltaValue - oldDelta;
+    const updatedBalance = oldBalanceValue + diff;
+    await prisma.account.update({ where: { id: oldAccountId }, data: { balance: updatedBalance } } as any);
 
     return NextResponse.json({ message: 'Transaction updated', transaction: updated }, { status: 200 });
   } catch (error) {
@@ -154,9 +143,10 @@ export async function DELETE(req: Request) {
     const total = existing.total;
     const delta = isExpense ? -total : total;
 
-    const account: any = await prisma.account.findUnique({ where: { id: accountId } });
-    const newBalance = ((account as any).balance ?? 0) - delta;
-    await prisma.account.update({ where: { id: accountId }, data: { balance: newBalance } } as any);
+    const account: unknown = await prisma.account.findUnique({ where: { id: accountId } }) as unknown as { balance?: number } | null;
+    const currentBalance = (account as { balance?: number } | null)?.balance ?? 0;
+    const newBalance = currentBalance - delta;
+    await prisma.account.update({ where: { id: accountId }, data: { balance: newBalance } } as unknown as { where: { id: string }; data: { balance: number } });
 
     await prisma.trx.delete({ where: { id } });
 
@@ -169,20 +159,36 @@ export async function DELETE(req: Request) {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const url = req.url ? new URL(req.url) : null;
     const clientId = session?.user?.clientId;
-    const accountId = req.url ? new URL(req.url).searchParams.get('accountId') : null;
+    const accountId = url?.searchParams.get('accountId');
+    const pageParam = url?.searchParams.get('page');
+    const limitParam = url?.searchParams.get('limit');
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+
     if (!clientId) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
+
     if (!accountId) {
-      return NextResponse.json({ transactions: [] }, { status: 200 });
+      return NextResponse.json({ transactions: [], total: 0, page, limit }, { status: 200 });
     }
+
+    const skip = (page - 1) * limit;
+    const take = limit;
+
     const transactions = await prisma.trx.findMany({
       where: { account_id: accountId },
       include: { account: true, category: true },
       orderBy: { date_input: 'desc' },
+      skip,
+      take,
     });
-    return NextResponse.json({ transactions }, { status: 200 });
+
+    const total = await prisma.trx.count({ where: { account_id: accountId } });
+
+    return NextResponse.json({ transactions, total, page, limit }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });

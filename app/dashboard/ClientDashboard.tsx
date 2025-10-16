@@ -18,18 +18,20 @@ type Transaction = {
   category?: { name?: string } | null;
   total: number;
   is_expense: boolean;
-  // other fields ignored for display
+  note?: string;
 };
 
-export default function ClientDashboard({ accounts, transactions, defaultAccountId }: { accounts: Account[]; transactions: Transaction[]; defaultAccountId?: string; }) {
+export default function ClientDashboard({ defaultAccountId }: { defaultAccountId?: string; }) {
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>(defaultAccountId ?? accounts?.[0]?.id ?? "");
-  const [list, setList] = useState<Transaction[]>(transactions ?? []);
+  const [list, setList] = useState<Transaction[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedTotal, setEditedTotal] = useState<number | undefined>(undefined);
   const [editedDateInput, setEditedDateInput] = useState<string>(""); // yyyy-mm-dd
   const [editedAccountId, setEditedAccountId] = useState<string>("");
 
-  const [loadingTransactions, setLoadingTransactions] = useState<boolean>(false);
+  const [loadingTransactions, setLoadingTransactions] = useState<boolean>(true);
+  const [loadingAccounts, setLoadingAccounts] = useState<boolean>(true);
 
   // New modal state
   const [confirmModal, setConfirmModal] = useState<null | { type: 'save' | 'delete'; trx?: Transaction }>(null);
@@ -38,44 +40,36 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
   const hasAccounts = accounts && accounts.length > 0;
   const canCreateTransaction = hasAccounts && !!defaultAccountId;
 
-  useEffect(() => { if (transactions) setList(transactions); }, [transactions]);
-
   // Pagination + filtering
   const pageSize = 20;
   const [currentPage, setCurrentPage] = useState(1);
-  const filtered = useMemo(() => {
-    if (!selectedAccount) return list;
-    return list.filter((t) => t.account?.id === selectedAccount);
-  }, [selectedAccount, list]);
-  const paginatedList = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return filtered.slice(start, end);
-  }, [filtered, currentPage]);
-  const totalPages = Math.max(1, Math.ceil((filtered?.length ?? 0) / pageSize));
+  const [totalCount, setTotalCount] = useState<number>(list?.length ?? 0);
+  const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
 
   useEffect(() => { if (currentPage > totalPages) setCurrentPage(1); }, [totalPages]);
 
   // UI default account
   useEffect(() => { if (!selectedAccount && accounts && accounts.length > 0) { setSelectedAccount(accounts[0].id); } }, [accounts]);
 
-  const balanceFromAccounts = useMemo(() => accounts?.reduce((acc, a) => acc + (a.balance ?? 0), 0) ?? 0, [accounts]);
-  const balanceFromTransactions = useMemo(() => {
-    const byAccount: Record<string, number> = {};
-    (list ?? []).forEach((t) => {
-      const accId = t.account?.id ?? "";
-      const delta = t.is_expense ? -t.total : t.total;
-      byAccount[accId] = (byAccount[accId] ?? 0) + delta;
-    });
-    return byAccount;
-  }, [list]);
-  const displayBalance = useMemo(() => {
-    if (!accounts || accounts.length === 0) return 0;
-    if (!selectedAccount) return 0;
-    const acc = accounts.find((a) => a.id === selectedAccount);
-    const byId = balanceFromTransactions[selectedAccount] ?? 0;
-    return byId !== 0 ? byId : (acc?.balance ?? 0);
-  }, [accounts, selectedAccount, balanceFromAccounts, balanceFromTransactions]);
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  async function fetchAccounts() {
+    setLoadingAccounts(true);
+    try {
+      const res = await fetch('/api/accounts', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch accounts');
+      const data = await res.json();
+      setAccounts(data.accounts ?? []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  }
+
+  const balanceFromAccounts = useMemo(() => accounts?.find(a => a.id === selectedAccount)?.balance ?? 0, [accounts, selectedAccount]);
 
   // Helpers
   const deleteTxn = async (id: string) => {
@@ -120,6 +114,7 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
       if (res.ok) {
         setList(prev => prev.filter(t => t.id !== id));
         if (editingId === id) setEditingId(null);
+        fetchAccounts();
       }
     } catch { /* ignore */ }
   };
@@ -140,10 +135,11 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
     (async () => {
       setLoadingTransactions(true);
       try {
-        const res = await fetch(`/api/transactions?accountId=${selectedAccount}`);
+        const res = await fetch(`/api/transactions?accountId=${selectedAccount}&page=${currentPage}&limit=${pageSize}`);
         if (res.ok) {
           const data = await res.json();
           if (data?.transactions) setList(data.transactions);
+          if (typeof data?.total === 'number') setTotalCount(data.total);
         }
       } catch {
         // Ignore fetch errors for resilience
@@ -151,66 +147,65 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
         setLoadingTransactions(false);
       }
     })();
-  }, [selectedAccount]);
+  }, [selectedAccount, currentPage]);
+
   // UI
   return (
     <div className="min-h-screen container mx-auto p-8 pt-10">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
         <div className="flex">
-          {canCreateTransaction ? (
-            <Link href="/transactions/new" className="rounded-md bg-green-600 px-4 py-2 text-white">
-              <span className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
-                </svg>
-                Transaction
-              </span>
-            </Link>
-          ) : (
-            <button className="rounded-md bg-green-600 px-4 py-2 text-white opacity-50" disabled title={'Tidak ada akun'}>
+          {/* canCreateTransaction */}
+          <Link href={canCreateTransaction ? "/transactions/new" : ''} className={`rounded-md bg-green-600 px-4 py-2 text-white ${canCreateTransaction ? '' : 'opacity-50'}`}>
+            <span className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+              </svg>
               Transaction
-            </button>
-          )}
+            </span>
+          </Link>
         </div>
       </div>
-      {!hasAccounts ? (
+      {!hasAccounts && !loadingAccounts ? (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4" role="alert">
-          <strong className="font-bold">Perhatian:</strong> Belum ada akun. Buat akun untuk mulai menggunakan dashboard.
+          <strong className="font-semibold">Perhatian:</strong> Belum ada akun. Buat akun untuk mulai input transaksi.
         </div>
       ) : (
         <>
           <div className="mb-2 text-lg font-semibold">
-            Balance: {displayBalance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+            Balance: {balanceFromAccounts.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
-            <select
-              value={selectedAccount}
-              onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-                const value = e.target.value;
-                setSelectedAccount(value);
-                if (value) {
-                  try {
-                    await fetch('/api/users/default-account', {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ accountId: value }),
-                    });
-                  } catch {
-                    // ignore
+          {
+            !loadingAccounts &&
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+              <select
+                value={selectedAccount}
+                onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+                  const value = e.target.value;
+                  setSelectedAccount(value);
+                  if (value) {
+                    try {
+                      await fetch('/api/users/default-account', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ accountId: value }),
+                      });
+                    } catch {
+                      // ignore
+                    }
                   }
-                }
-              }}
-              className="border rounded px-3 py-2"
-              disabled={!hasAccounts}
-            >
-              {accounts?.map((acc) => (
-                <option key={acc?.id} value={acc?.id}>{acc?.name}</option>
-              ))}
-            </select>
-          </div>
+                }}
+                className="border rounded px-3 py-2"
+                disabled={!hasAccounts}
+              >
+                {accounts?.map((acc) => (
+                  <option key={acc?.id} value={acc?.id}>{acc?.name}</option>
+                ))}
+              </select>
+            </div>
+          }
         </>
       )}
 
@@ -244,8 +239,8 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
                   <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">Loading...</td></tr>
                   :
                   (
-                    paginatedList.length > 0 ?
-                      paginatedList.map((trx, idx) => (
+                    list.length > 0 ?
+                      list.map((trx, idx) => (
                         <tr key={trx.id} className="border-b">
                           <td className="py-3 text-sm text-gray-800">{(currentPage - 1) * pageSize + idx + 1}</td>
                           <td className="py-3 text-sm text-gray-800">
@@ -272,7 +267,9 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
                                   <button className="bg-yellow-500 text-white rounded px-2 py-1">Actions</button>
                                 </MenuTrigger>
                                 <MenuContent align="start">
-                                  <MenuItem onClick={() => startEdit(trx)}>Update</MenuItem>
+                                  <MenuItem>
+                                    <Link href={`/transactions/edit/${trx.id}`}>Update</Link>
+                                  </MenuItem>
                                   <MenuItem onClick={() => deleteTxn(trx.id)}>Delete</MenuItem>
                                 </MenuContent>
                               </Menu>

@@ -9,6 +9,7 @@ export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const clientId = session?.user?.clientId;
+    const userId = session?.user?.id;
 
     if (!clientId) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -21,19 +22,13 @@ export async function PATCH(req: Request) {
     }
 
     // Validate account belongs to client
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
-    if (!account || account.client_id !== clientId) {
+    const account = await prisma.account.findUnique({ where: { id: accountId, client_id: clientId} });
+    if (!account) {
       return NextResponse.json({ message: 'Account not found' }, { status: 404 });
     }
 
-    // Find user by client_id
-    const user = await prisma.user.findFirst({ where: { client_id: clientId } });
-    if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: { default_account_id: accountId },
     });
 
