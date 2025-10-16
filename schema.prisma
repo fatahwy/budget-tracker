@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+
+  users      User[]     @relation("ClientUsers")
+  accounts   Account[]  @relation("ClientAccounts")
+  categories Category[] @relation("ClientCategories")
+
+  @@map("clients")
+}
+
+model User {
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  client_id          String
+  default_account_id String?
+
+  username String @unique
+  email    String
+  password String
+
+  client          Client    @relation("ClientUsers", fields: [client_id], references: [id])
+  default_account Account?  @relation("UserDefaultAccount", fields: [default_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trx             Trx[]     @relation("TrxUser")
+  accounts        Account[] @relation("UserAccounts")
+
+  @@map("users")
+}
+
+model Account {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  balance   Float  @default(0)
+  client_id String
+
+  client Client  @relation("ClientAccounts", fields: [client_id], references: [id])
+  userId String?
+  user   User?   @relation("UserAccounts", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  trx             Trx[]  @relation("TrxAccount")
+  defaultAccounts User[] @relation("UserDefaultAccount")
+
+  @@map("accounts")
+}
+
+model Category {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  client_id String
+
+  client Client @relation("ClientCategories", fields: [client_id], references: [id])
+  trx    Trx[]  @relation("TrxCategory")
+
+  @@map("categories")
+}
+
+model Trx {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  total         Float
+  note          String?
+  is_expense    Boolean
+  date_input    DateTime
+  account_id    String
+  category_id   String
+  user_input_id String
+
+  account  Account  @relation("TrxAccount", fields: [account_id], references: [id], onDelete: Cascade)
+  category Category @relation("TrxCategory", fields: [category_id], references: [id])
+  user     User     @relation("TrxUser", fields: [user_input_id], references: [id])
+
+  @@map("trx")
+}
