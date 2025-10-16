@@ -166,3 +166,25 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }
+export async function GET(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const clientId = session?.user?.clientId;
+    const accountId = req.url ? new URL(req.url).searchParams.get('accountId') : null;
+    if (!clientId) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+    if (!accountId) {
+      return NextResponse.json({ transactions: [] }, { status: 200 });
+    }
+    const transactions = await prisma.trx.findMany({
+      where: { account_id: accountId },
+      include: { account: true, category: true },
+      orderBy: { date_input: 'desc' },
+    });
+    return NextResponse.json({ transactions }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
+  }
+}

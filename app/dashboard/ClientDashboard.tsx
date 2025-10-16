@@ -27,25 +27,37 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
   const [editedDateInput, setEditedDateInput] = useState<string>(""); // yyyy-mm-dd
   const [editedAccountId, setEditedAccountId] = useState<string>("");
 
-  // Sync list with props
+  const [loadingTransactions, setLoadingTransactions] = useState<boolean>(false);
+
+  // New modal state
+  const [confirmModal, setConfirmModal] = useState<null | { type: 'save' | 'delete'; trx?: Transaction }>(null);
+
+  // Sync with props
   const hasAccounts = accounts && accounts.length > 0;
   const canCreateTransaction = hasAccounts && !!defaultAccountId;
 
-  useEffect(() => {
-    if (transactions) setList(transactions);
-  }, [transactions]);
+  useEffect(() => { if (transactions) setList(transactions); }, [transactions]);
 
-  // Ensure a default selection when accounts arrive
-  useEffect(() => {
-    if (!selectedAccount && accounts && accounts.length > 0) {
-      setSelectedAccount(accounts[0].id);
-    }
-  }, [accounts]);
+  // Pagination + filtering
+  const pageSize = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  const filtered = useMemo(() => {
+    if (!selectedAccount) return list;
+    return list.filter((t) => t.account?.id === selectedAccount);
+  }, [selectedAccount, list]);
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filtered.slice(start, end);
+  }, [filtered, currentPage]);
+  const totalPages = Math.max(1, Math.ceil((filtered?.length ?? 0) / pageSize));
 
-  const balanceFromAccounts = useMemo(() => {
-    return accounts?.reduce((acc, a) => acc + (a.balance ?? 0), 0) ?? 0;
-  }, [accounts]);
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(1); }, [totalPages]);
 
+  // UI default account
+  useEffect(() => { if (!selectedAccount && accounts && accounts.length > 0) { setSelectedAccount(accounts[0].id); } }, [accounts]);
+
+  const balanceFromAccounts = useMemo(() => accounts?.reduce((acc, a) => acc + (a.balance ?? 0), 0) ?? 0, [accounts]);
   const balanceFromTransactions = useMemo(() => {
     const byAccount: Record<string, number> = {};
     (list ?? []).forEach((t) => {
@@ -55,7 +67,6 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
     });
     return byAccount;
   }, [list]);
-
   const displayBalance = useMemo(() => {
     if (!accounts || accounts.length === 0) return 0;
     if (!selectedAccount) return 0;
@@ -64,29 +75,10 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
     return byId !== 0 ? byId : (acc?.balance ?? 0);
   }, [accounts, selectedAccount, balanceFromAccounts, balanceFromTransactions]);
 
-  const filtered = useMemo(() => {
-    if (!selectedAccount) return list;
-    return list.filter((t) => t.account?.id === selectedAccount);
-  }, [selectedAccount, list]);
-
   // Helpers
   const deleteTxn = async (id: string) => {
-    if (!confirm("Delete this transaction?")) return;
-    try {
-      const res = await fetch('/api/transactions', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) {
-        setList(prev => prev.filter(t => t.id !== id));
-        if (editingId === id) setEditingId(null);
-      } else {
-        // Optional: show error
-      }
-    } catch (e) {
-      // ignore
-    }
+    const target = list.find(t => t.id === id);
+    setConfirmModal({ type: 'delete', trx: target ?? undefined });
   };
 
   const startEdit = (trx: Transaction) => {
@@ -98,17 +90,17 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
   };
 
   const saveEdit = async (trx: Transaction) => {
+    setConfirmModal({ type: 'save', trx });
+  };
+
+  const performSaveEdit = async (trx: Transaction) => {
     const payload = {
       id: trx.id,
       total: editedTotal ?? trx.total,
       dateInput: editedDateInput || (typeof trx.date_input === 'string' ? trx.date_input : new Date(trx.date_input).toISOString()),
       accountId: editedAccountId || trx.account?.id
     };
-    const res = await fetch('/api/transactions', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch('/api/transactions', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (res.ok) {
       setList(prev => prev.map(t => t.id === trx.id ? {
         ...t,
@@ -120,19 +112,62 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
     }
   };
 
+  const performDelete = async (id: string) => {
+    try {
+      const res = await fetch('/api/transactions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      if (res.ok) {
+        setList(prev => prev.filter(t => t.id !== id));
+        if (editingId === id) setEditingId(null);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleModalConfirm = async () => {
+    if (!confirmModal) return;
+    if (confirmModal.type === 'save' && confirmModal.trx) {
+      await performSaveEdit(confirmModal.trx);
+    } else if (confirmModal.type === 'delete' && confirmModal.trx?.id) {
+      await performDelete(confirmModal.trx.id);
+    }
+    setConfirmModal(null);
+  };
+
+  // Fetch transactions when the selected account changes
+  useEffect(() => {
+    if (!selectedAccount) return;
+    (async () => {
+      setLoadingTransactions(true);
+      try {
+        const res = await fetch(`/api/transactions?accountId=${selectedAccount}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.transactions) setList(data.transactions);
+        }
+      } catch {
+        // Ignore fetch errors for resilience
+      } finally {
+        setLoadingTransactions(false);
+      }
+    })();
+  }, [selectedAccount]);
   // UI
   return (
-    <div className="min-h-screen container mx-auto p-8">
+    <div className="min-h-screen container mx-auto p-8 pt-10">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <div className="space-x-4">
+        <div className="flex">
           {canCreateTransaction ? (
             <Link href="/transactions/new" className="rounded-md bg-green-600 px-4 py-2 text-white">
-              New Transaction
+              <span className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+                </svg>
+                Transaction
+              </span>
             </Link>
           ) : (
-            <button className="rounded-md bg-green-600 px-4 py-2 text-white opacity-50" disabled title={hasAccounts ? 'Pilih akun default untuk membuat transaksi' : 'Tidak ada akun'}>
-              New Transaction
+            <button className="rounded-md bg-green-600 px-4 py-2 text-white opacity-50" disabled title={'Tidak ada akun'}>
+              Transaction
             </button>
           )}
         </div>
@@ -141,10 +176,10 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4" role="alert">
           <strong className="font-bold">Perhatian:</strong> Belum ada akun. Buat akun untuk mulai menggunakan dashboard.
         </div>
-      ) :
+      ) : (
         <>
           <div className="mb-2 text-lg font-semibold">
-            Balance: ${displayBalance.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            Balance: {displayBalance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
           </div>
 
           <div className="mb-6">
@@ -154,20 +189,15 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
               onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
                 const value = e.target.value;
                 setSelectedAccount(value);
-                // save as default for user and refresh session on success
                 if (value) {
                   try {
-                    const res = await fetch('/api/users/default-account', {
+                    await fetch('/api/users/default-account', {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ accountId: value }),
                     });
-                    // const data = await res.json();
-                    // if (res.ok && data?.defaultAccountId) {
-                    //   window.location.reload(); // refresh session to reflect new default account
-                    // }
                   } catch {
-                    // ignore errors
+                    // ignore
                   }
                 }
               }}
@@ -180,13 +210,24 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
             </select>
           </div>
         </>
-      }
+      )}
+
+      {totalPages > 1 && (
+        <div className="pagination-controls mb-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">Page {currentPage} of {totalPages}</div>
+          <div className="space-x-2">
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-2 py-1 border rounded" aria-label="Previous page">Prev</button>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-2 py-1 border rounded" aria-label="Next page">Next</button>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-xl font-bold text-gray-800">Recent Transactions</h2>
         <table className="w-full">
           <thead>
             <tr className="border-b">
+              <th className="py-2 text-left text-sm font-medium text-gray-500">No.</th>
               <th className="py-2 text-left text-sm font-medium text-gray-500">Date</th>
               <th className="py-2 text-left text-sm font-medium text-gray-500">Account</th>
               <th className="py-2 text-left text-sm font-medium text-gray-500">Category</th>
@@ -195,47 +236,102 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
             </tr>
           </thead>
           <tbody>
-            {filtered.map((trx) => (
-              <tr key={trx.id} className="border-b">
-                <td className="py-3 text-sm text-gray-800">
-                  {editingId === trx.id ? (
-                    <input type="date" className="border rounded px-2 py-1" value={editedDateInput} onChange={e => setEditedDateInput(e.target.value)} />
-                  ) : (
-                    new Date(trx.date_input).toLocaleDateString('id-ID')
-                  )}
-                </td>
-                <td className="py-3 text-sm text-gray-800">{trx.account?.name}</td>
-                <td className="py-3 text-sm text-gray-800">{trx.category?.name ?? ""}</td>
-                <td className={`py-3 text-right text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>
-                  {trx.is_expense ? "-" : "+"}${(trx.total ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="py-3 text-sm text-center text-gray-800">
-                  {editingId === trx.id ? (
-                    <>
-                      <input type="number" step="0.01" className="border rounded px-2 py-1 w-24" value={editedTotal ?? trx.total} onChange={e => setEditedTotal(parseFloat(e.target.value))} />
-                      <button className="ml-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(trx)}>
-                        Save
-                      </button>
-                      <button className="ml-2 bg-gray-300 rounded px-2 py-1" onClick={() => setEditingId(null)}>
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button className="bg-yellow-500 text-white rounded px-2 py-1" onClick={() => startEdit(trx)}>
-                        Update
-                      </button>
-                      <button className="ml-2 bg-red-600 text-white rounded px-2 py-1" onClick={() => deleteTxn(trx.id)}>
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {
+              loadingTransactions ?
+                <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">Loading...</td></tr>
+                :
+                (
+                  paginatedList.length > 0 ?
+                    paginatedList.map((trx, idx) => (
+                      <tr key={trx.id} className="border-b">
+                        <td className="py-3 text-sm text-gray-800">{(currentPage - 1) * pageSize + idx + 1}</td>
+                        <td className="py-3 text-sm text-gray-800">
+                          {editingId === trx.id ? (
+                            <input type="date" className="border rounded px-2 py-1" value={editedDateInput} onChange={e => setEditedDateInput(e.target.value)} />
+                          ) : (
+                            new Date(trx.date_input).toLocaleDateString('id-ID')
+                          )}
+                        </td>
+                        <td className="py-3 text-sm text-gray-800">{trx.account?.name}</td>
+                        <td className="py-3 text-sm text-gray-800">{trx.category?.name ?? ""}</td>
+                        <td className={`py-3 text-right text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>
+                          {trx.is_expense ? "-" : "+"}{(trx.total ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                        </td>
+                        <td className="py-3 text-sm text-center text-gray-800">
+                          {editingId === trx.id ? (
+                            <>
+                              <input type="number" step="0.01" className="border rounded px-2 py-1 w-24" value={editedTotal ?? trx.total} onChange={e => setEditedTotal(parseFloat(e.target.value))} />
+                              <button className="ml-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(trx)}>
+                                <span className="inline-flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M16.707 5.293a1 1 0 0 1 0 1.414l-7 7-4 1 1-4 7-7a1 1 0 0 1 1.414 0z" />
+                                  </svg>
+                                  Save
+                                </span>
+                              </button>
+                              <button className="ml-2 bg-gray-300 rounded px-2 py-1" onClick={() => setEditingId(null)}>
+                                <span className="inline-flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M6 6l8 8M14 6L6 14" stroke="currentColor" strokeWidth="2" fill="none" />
+                                  </svg>
+                                  Cancel
+                                </span>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="bg-yellow-500 text-white rounded px-2 py-1" onClick={() => startEdit(trx)}>
+                                <span className="flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M3 13l6 6 8-8-6-6-8 8z" />
+                                  </svg>
+                                  Update
+                                </span>
+                              </button>
+                              <button className="ml-2 bg-red-600 text-white rounded px-2 py-1" onClick={() => deleteTxn(trx.id)}>
+                                <span className="flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M5 7h10l-1 9H6L5 7z" />
+                                  </svg>
+                                  Delete
+                                </span>
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                    :
+                    <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">No transactions for this page</td></tr>
+                )
+            }
           </tbody>
         </table>
       </div>
+
+      {/* Confirmation modal for Save/Delete actions */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded shadow p-6 w-96">
+            <div className="font-semibold text-lg mb-2">
+              {confirmModal.type === 'save' ? 'Konfirmasi Simpan Transaksi' : 'Konfirmasi Hapus Transaksi'}
+            </div>
+            <div className="text-sm mb-4">
+              {confirmModal.type === 'save'
+                ? 'Apakah Anda yakin ingin menyimpan perubahan pada transaksi ini?'
+                : 'Apakah Anda yakin ingin menghapus transaksi ini?'}
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button className="px-3 py-1 rounded bg-gray-300" onClick={() => setConfirmModal(null)}>
+                Batal
+              </button>
+              <button className={`px-3 py-1 rounded ${confirmModal.type === 'save' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`} onClick={handleModalConfirm}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

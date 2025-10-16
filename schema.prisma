@@ -74,7 +74,7 @@ model Trx {
 
   account  Account  @relation("TrxAccount", fields: [account_id], references: [id], onDelete: Cascade)
   category Category @relation("TrxCategory", fields: [category_id], references: [id])
-  user     User     @relation("TrxUser", fields: [user_input_id], references: [id])
+  user     User     @relation("TrxUser", fields: [user_input_id], references: [id], onDelete: NoAction)
 
   @@map("trx")
 }

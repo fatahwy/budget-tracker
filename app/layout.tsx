@@ -32,7 +32,9 @@ export default function RootLayout({
         {!path.startsWith('/login') && !path.startsWith('/signup') && (
           <Header />
         )}
-        <Providers>{children}</Providers>
+        <div className="pt-16">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );

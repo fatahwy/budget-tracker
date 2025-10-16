@@ -14,6 +14,7 @@ export default function AccountsCRUD() {
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
 
@@ -22,6 +23,7 @@ export default function AccountsCRUD() {
   }, []);
 
   async function fetchAccounts() {
+    setLoadingAccounts(true);
     try {
       const res = await fetch('/api/accounts', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch accounts');
@@ -30,6 +32,8 @@ export default function AccountsCRUD() {
     } catch (err) {
       console.error(err);
       setError('Unable to load accounts');
+    } finally {
+      setLoadingAccounts(false);
     }
   }
 
@@ -63,6 +67,7 @@ export default function AccountsCRUD() {
   }
 
   async function updateAccount(id: string) {
+    if (!window.confirm('Simpan perubahan akun ini?')) return;
     try {
       const res = await fetch('/api/accounts', {
         method: 'PUT',
@@ -74,7 +79,7 @@ export default function AccountsCRUD() {
         await fetchAccounts();
         setEditing(null);
       } else {
-        setError(data.message ?? 'Failed to update account');
+        setError(data.message ?? 'Failed to update');
       }
     } catch (err) {
       console.error(err);
@@ -82,6 +87,7 @@ export default function AccountsCRUD() {
   }
 
   async function deleteAccount(id: string) {
+    if (!window.confirm('Hapus akun ini?')) return;
     try {
       const res = await fetch('/api/accounts', {
         method: 'DELETE',
@@ -115,6 +121,7 @@ export default function AccountsCRUD() {
         </button>
       </form>
 
+      {loadingAccounts && <div className="text-sm mb-4 text-gray-600">Memuat akun...</div>}
       {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
 
       <table className="min-w-full divide-y divide-gray-200">
@@ -126,58 +133,69 @@ export default function AccountsCRUD() {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {accounts.map((a) => (
-            <tr key={a.id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editing === a.id ? (
-                  <input
-                    className="border rounded px-2 py-1"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                  />
-                ) : (
-                  a.name
-                )}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                {Number(a.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {editing === a.id ? (
-                  <>
-                    <button onClick={() => updateAccount(a.id)} className="mr-2 text-sm text-indigo-600">
-                      Save
-                    </button>
-                    <button onClick={() => setEditing(null)} className="text-sm text-gray-600">
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        setEditing(a.id);
-                        setEditName(a.name);
-                      }}
-                      className="mr-2 text-sm text-blue-600"
-                    >
-                      Edit
-                    </button>
-                    <button onClick={() => deleteAccount(a.id)} className="text-sm text-red-600">
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-          {accounts.length === 0 && (
-            <tr>
-              <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
-                No accounts found. Create one to get started.
-              </td>
-            </tr>
-          )}
+          {
+            loadingAccounts ?
+              <tr>
+                <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
+                  Loading...
+                </td>
+              </tr>
+              :
+              (
+                accounts.length > 0 ?
+                  accounts.map((a) => (
+                    <tr key={a.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editing === a.id ? (
+                          <input
+                            className="border rounded px-2 py-1"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                          />
+                        ) : (
+                          a.name
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        {Number(a.balance ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editing === a.id ? (
+                          <>
+                            <button onClick={() => updateAccount(a.id)} className="mr-2 bg-blue-500 text-white rounded px-2 py-1">
+                              Save
+                            </button>
+                            <button onClick={() => setEditing(null)} className="bg-gray-500 text-white rounded px-2 py-1">
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditing(a.id);
+                                setEditName(a.name);
+                              }}
+                              className="bg-yellow-500 text-white rounded px-2 py-1 mr-1"
+                            >
+                              Edit
+                            </button>
+                            <button onClick={() => deleteAccount(a.id)} className="bg-red-600 text-white rounded px-2 py-1">
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                  :
+                  <tr>
+                    <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
+                      No accounts found. Create one to get started.
+                    </td>
+                  </tr>
+              )
+          }
         </tbody>
       </table>
     </div>

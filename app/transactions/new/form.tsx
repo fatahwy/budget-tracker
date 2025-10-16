@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { Account, Category } from '@prisma/client';
 
@@ -12,15 +12,23 @@ interface NewTransactionFormProps {
 }
 
 export function NewTransactionForm({ accounts, categories }: NewTransactionFormProps) {
-  const [total, setTotal] = useState<number | ''>('');
+  const [total, setTotal] = useState(0);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [isExpense, setIsExpense] = useState(true);
   const [dateInput, setDateInput] = useState(new Date().toISOString().split('T')[0]);
-  const [accountId, setAccountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const formSchema = z.object({
+    total: z.number().gt(0, { message: 'Total must be greater than 0' }),
+    categoryId: z.string(),
+    note: z.string().optional(),
+    isExpense: z.boolean(),
+    dateInput: z.string().min(1, 'Date is required'),
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -33,22 +41,50 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setIsLoading(true);
 
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ total, categoryId, note, isExpense, dateInput, accountId }),
-    });
+    const parsed = {
+      total,
+      categoryId,
+      note,
+      isExpense,
+      dateInput,
+    };
 
-    const data = await response.json();
+    const validation = formSchema.safeParse(parsed);
+    if (!validation.success) {
+      const errs: Record<string, string> = {};
+      validation.error?.issues.forEach((issue) => {
+        const key = issue.path[0] as string;
+        errs[key] = issue.message;
+      });
+      setFieldErrors(errs);
+      setIsLoading(false);
+      return;
+    }
+    setFieldErrors({});
 
-    if (response.ok) {
-      setSuccess(data.message);
-      router.push('/dashboard');
-    } else {
-      setError(data.message);
+    try {
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(parsed),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(data.message);
+        router.push('/dashboard');
+      } else {
+        setError(data.message);
+      }
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -60,9 +96,10 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
           type="date"
           value={dateInput}
           onChange={(e) => setDateInput(e.target.value)}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.dateInput ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
           required
         />
+        {fieldErrors.dateInput && <p className="text-sm text-red-600 mt-1">{fieldErrors.dateInput}</p>}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
@@ -94,34 +131,65 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
           onChange={(option) => setCategoryId(option?.value || null)}
           options={categoryOptions}
         />}
+        {fieldErrors.categoryId && <p className="text-sm text-red-600 mt-1">{fieldErrors.categoryId}</p>}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Total</label>
         <input
-          type="number"
+          type="text"
           value={total}
-          onChange={(e) => setTotal(Number(e.target.value))}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          onChange={(e) => {
+            const v = parseInt(e.target.value.replace(/[^\d]/g, ''));
+            setTotal(v);
+          }}
+          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.total ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
           required
         />
+        {fieldErrors.total && <p className="text-sm text-red-600 mt-1">{fieldErrors.total}</p>}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Note</label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.note ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
         />
+        {fieldErrors.note && <p className="text-sm text-red-600 mt-1">{fieldErrors.note}</p>}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}
-      <button
-        type="submit"
-        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-      >
-        Create Transaction
-      </button>
+      <div className="flex space-x-4 justify-end">
+        <button
+          type="button"
+          onClick={() => router.push('/dashboard')}
+          className="rounded-md bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2"
+        >
+          Back
+        </button>
+        <button
+          type="submit"
+          className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
+                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+              </svg>
+              <span>Loading...</span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+              </svg>
+              <span>Save</span>
+            </span>
+          )}
+        </button>
+      </div>
     </form>
   );
 }
