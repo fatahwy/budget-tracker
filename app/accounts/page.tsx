@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
 
 type Account = {
   id: string;
@@ -83,6 +87,7 @@ export default function AccountsCRUD() {
       }
     } catch (err) {
       console.error(err);
+      setError('Failed to update');
     }
   }
 
@@ -102,102 +107,109 @@ export default function AccountsCRUD() {
       }
     } catch (err) {
       console.error(err);
+      setError('Failed to delete');
     }
   }
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Accounts</h1>
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Accounts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={createAccount} className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              placeholder="New account name"
+              value={newName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
+            />
+            <Button type="submit" variant="primary" disabled={loading}>
+              {loading ? 'Creating…' : 'Create Account'}
+            </Button>
+          </form>
 
-      <form onSubmit={createAccount} className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input
-          className="border rounded px-3 py-2"
-          placeholder="New account name"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <button type="submit" className="rounded-md bg-indigo-600 px-4 py-2 text-white" disabled={loading}>
-          {loading ? 'Creating…' : 'Create Account'}
-        </button>
-      </form>
+          {loadingAccounts && <div className="text-sm mb-4 text-gray-600">Memuat akun...</div>}
+          {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
 
-      {loadingAccounts && <div className="text-sm mb-4 text-gray-600">Memuat akun...</div>}
-      {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
-
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {
-            loadingAccounts ?
-              <tr>
-                <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
-                  Loading...
-                </td>
+          <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-              :
-              (
-                accounts.length > 0 ?
-                  accounts.map((a) => (
-                    <tr key={a.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {editing === a.id ? (
-                          <input
-                            className="border rounded px-2 py-1"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                          />
-                        ) : (
-                          a.name
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {Number(a.balance ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {editing === a.id ? (
-                          <>
-                            <button onClick={() => updateAccount(a.id)} className="mr-2 bg-blue-500 text-white rounded px-2 py-1">
-                              Save
-                            </button>
-                            <button onClick={() => setEditing(null)} className="bg-gray-500 text-white rounded px-2 py-1">
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => {
-                                setEditing(a.id);
-                                setEditName(a.name);
-                              }}
-                              className="bg-yellow-500 text-white rounded px-2 py-1 mr-1"
-                            >
-                              Edit
-                            </button>
-                            <button onClick={() => deleteAccount(a.id)} className="bg-red-600 text-white rounded px-2 py-1">
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                  :
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {
+                loadingAccounts ?
                   <tr>
                     <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
-                      No accounts found. Create one to get started.
+                      Loading...
                     </td>
                   </tr>
-              )
-          }
-        </tbody>
-      </table>
+                  :
+                  (
+                    accounts.length > 0 ?
+                      accounts.map((a) => (
+                        <tr key={a.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {editing === a.id ? (
+                              <Input
+                                className="border rounded px-2 py-1"
+                                value={editName}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditName(e.target.value)}
+                              />
+                            ) : (
+                              a.name
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {Number(a.balance ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                          </td>
+                          <td className="py-3 text-sm text-center text-gray-800">
+                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"> */}
+                            { editing === a.id ? (
+                              <Menu>
+                                <MenuTrigger>
+                                  <button className="px-2 py-1 rounded bg-gray-100">Actions</button>
+                                </MenuTrigger>
+                                <MenuContent align="start">
+                                  <MenuItem onClick={() => updateAccount(a.id)}>Save</MenuItem>
+                                  <MenuItem onClick={() => setEditing(null)}>Cancel</MenuItem>
+                                </MenuContent>
+                              </Menu>
+                            ) : (
+                              <Menu>
+                                <MenuTrigger>
+                                  <button className="px-2 py-1 rounded bg-gray-100">Actions</button>
+                                </MenuTrigger>
+                                <MenuContent align="start">
+                                  <MenuItem onClick={() => {
+                                    setEditing(a.id);
+                                    setEditName(a.name);
+                                  }}>Edit</MenuItem>
+                                  <MenuItem onClick={() => deleteAccount(a.id)}>Delete</MenuItem>
+                                </MenuContent>
+                              </Menu>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                      :
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 text-sm text-gray-500 text-center">
+                          No accounts found. Create one to get started.
+                        </td>
+                      </tr>
+                  )
+              }
+            </tbody>
+          </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

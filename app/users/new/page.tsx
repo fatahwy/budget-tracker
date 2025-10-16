@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { CreateUserForm } from '../CreateUserForm';
 
 export default function CreateUserPage() {
@@ -11,9 +12,13 @@ export default function CreateUserPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Create User</h1>
-      <CreateUserForm onUserCreated={handleUserCreated} />
-    </div>
+    <Card className="container mx-auto p-6">
+      <CardHeader className="mb-4">
+        <CardTitle>Create User</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CreateUserForm onUserCreated={handleUserCreated} />
+      </CardContent>
+    </Card>
   );
 }

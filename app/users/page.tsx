@@ -1,7 +1,9 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 
 type User = {
@@ -101,45 +103,54 @@ export default function UsersPage() {
       {loading ? (
         <div>Loading...</div>
       ) : (
-        <table className="min-w-full border">
-          <thead>
-            <tr className="border-b">
-              <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">ID</th>
-              <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Username</th>
-              <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Email</th>
-              <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-b">
-                <td className="px-2 py-2 text-sm text-gray-700">{u.id}</td>
-                <td className="px-2 py-2 text-sm text-gray-700">{u.username}</td>
-                <td className="px-2 py-2 text-sm text-gray-700">
-                  {editingId === u.id ? (
-                    <input value={editingEmail} onChange={(e) => setEditingEmail(e.target.value)} className="border rounded px-2 py-1" />
-                  ) : (
-                    u.email
-                  )}
-                </td>
-                <td className="py-3 text-sm text-gray-800">
-                  {editingId === u.id ? (
-                    <>
-                      <input type="password" placeholder="New password" value={editingPassword} onChange={(e) => setEditingPassword(e.target.value)} className="ml-2 border rounded px-2 py-1" />
-                      <button className="mx-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(u)}>Save</button>
-                      <button className=" bg-gray-300 rounded px-2 py-1" onClick={cancelEdit}>Cancel</button>
-                    </>
-                  ) : (
-                    <>
-                      <button className="bg-yellow-500 text-white rounded px-2 py-1" onClick={() => startEdit(u)}>Update</button>
-                      <button className="ml-2 bg-red-600 text-white rounded px-2 py-1" onClick={() => deleteUser(u.id)}>Delete</button>
-                    </>
-                  )}
-                </td>
+        <div className="w-full overflow-x-auto">
+          <table className="min-w-full border min-h-full">
+            <thead>
+              <tr className="border-b">
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">ID</th>
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Username</th>
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Email</th>
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b">
+                  <td className="px-2 py-2 text-sm text-gray-700">{u.id}</td>
+                  <td className="px-2 py-2 text-sm text-gray-700">{u.username}</td>
+                  <td className="px-2 py-2 text-sm text-gray-700">
+                    {editingId === u.id ? (
+                      <input value={editingEmail} onChange={(e) => setEditingEmail(e.target.value)} className="border rounded px-2 py-1" />
+                    ) : (
+                      u.email
+                    )}
+                  </td>
+                  <td className="py-3 text-sm text-gray-800">
+                    {editingId === u.id ? (
+                      <>
+                        <input type="password" placeholder="New password" value={editingPassword} onChange={(e) => setEditingPassword(e.target.value)} className="ml-2 border rounded px-2 py-1" />
+                        <button className="mx-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(u)}>Save</button>
+                        <button className=" bg-gray-300 rounded px-2 py-1" onClick={cancelEdit}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <Menu>
+                          <MenuTrigger>
+                            <button className="bg-yellow-500 text-white rounded px-2 py-1">Actions</button>
+                          </MenuTrigger>
+                          <MenuContent align="start">
+                            <MenuItem onClick={() => startEdit(u)}>Update</MenuItem>
+                            <MenuItem onClick={() => deleteUser(u.id)}>Delete</MenuItem>
+                          </MenuContent>
+                        </Menu>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

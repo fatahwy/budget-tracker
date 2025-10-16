@@ -1,6 +1,8 @@
 'use client';
 import Link from "next/link";
 import React, { useMemo, useState, useEffect } from "react";
+import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
+import { Button } from "../components/ui/button";
 
 type Account = {
   id: string;
@@ -224,89 +226,67 @@ export default function ClientDashboard({ accounts, transactions, defaultAccount
 
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-xl font-bold text-gray-800">Recent Transactions</h2>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="py-2 text-left text-sm font-medium text-gray-500">No.</th>
-              <th className="py-2 text-left text-sm font-medium text-gray-500">Date</th>
-              <th className="py-2 text-left text-sm font-medium text-gray-500">Account</th>
-              <th className="py-2 text-left text-sm font-medium text-gray-500">Category</th>
-              <th className="py-2 text-right text-sm font-medium text-gray-500">Amount</th>
-              <th className="py-2 text-center text-sm font-medium text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {
-              loadingTransactions ?
-                <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">Loading...</td></tr>
-                :
-                (
-                  paginatedList.length > 0 ?
-                    paginatedList.map((trx, idx) => (
-                      <tr key={trx.id} className="border-b">
-                        <td className="py-3 text-sm text-gray-800">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="py-3 text-sm text-gray-800">
-                          {editingId === trx.id ? (
-                            <input type="date" className="border rounded px-2 py-1" value={editedDateInput} onChange={e => setEditedDateInput(e.target.value)} />
-                          ) : (
-                            new Date(trx.date_input).toLocaleDateString('id-ID')
-                          )}
-                        </td>
-                        <td className="py-3 text-sm text-gray-800">{trx.account?.name}</td>
-                        <td className="py-3 text-sm text-gray-800">{trx.category?.name ?? ""}</td>
-                        <td className={`py-3 text-right text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>
-                          {trx.is_expense ? "-" : "+"}{(trx.total ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
-                        </td>
-                        <td className="py-3 text-sm text-center text-gray-800">
-                          {editingId === trx.id ? (
-                            <>
-                              <input type="number" step="0.01" className="border rounded px-2 py-1 w-24" value={editedTotal ?? trx.total} onChange={e => setEditedTotal(parseFloat(e.target.value))} />
-                              <button className="ml-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(trx)}>
-                                <span className="inline-flex items-center gap-1">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path d="M16.707 5.293a1 1 0 0 1 0 1.414l-7 7-4 1 1-4 7-7a1 1 0 0 1 1.414 0z" />
-                                  </svg>
-                                  Save
-                                </span>
-                              </button>
-                              <button className="ml-2 bg-gray-300 rounded px-2 py-1" onClick={() => setEditingId(null)}>
-                                <span className="inline-flex items-center gap-1">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path d="M6 6l8 8M14 6L6 14" stroke="currentColor" strokeWidth="2" fill="none" />
-                                  </svg>
-                                  Cancel
-                                </span>
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button className="bg-yellow-500 text-white rounded px-2 py-1" onClick={() => startEdit(trx)}>
-                                <span className="flex items-center gap-1">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path d="M3 13l6 6 8-8-6-6-8 8z" />
-                                  </svg>
-                                  Update
-                                </span>
-                              </button>
-                              <button className="ml-2 bg-red-600 text-white rounded px-2 py-1" onClick={() => deleteTxn(trx.id)}>
-                                <span className="flex items-center gap-1">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path d="M5 7h10l-1 9H6L5 7z" />
-                                  </svg>
-                                  Delete
-                                </span>
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                    :
-                    <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">No transactions for this page</td></tr>
-                )
-            }
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="py-2 text-left text-sm font-medium text-gray-500">No.</th>
+                <th className="py-2 text-left text-sm font-medium text-gray-500">Date</th>
+                <th className="py-2 text-left text-sm font-medium text-gray-500">Category</th>
+                <th className="py-2 text-left text-sm font-medium text-gray-500">Amount</th>
+                <th className="py-2 text-left text-sm font-medium text-gray-500">Note</th>
+                <th className="py-2 text-center text-sm font-medium text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                loadingTransactions ?
+                  <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">Loading...</td></tr>
+                  :
+                  (
+                    paginatedList.length > 0 ?
+                      paginatedList.map((trx, idx) => (
+                        <tr key={trx.id} className="border-b">
+                          <td className="py-3 text-sm text-gray-800">{(currentPage - 1) * pageSize + idx + 1}</td>
+                          <td className="py-3 text-sm text-gray-800">
+                            {editingId === trx.id ? (
+                              <input type="date" className="border rounded px-2 py-1" value={editedDateInput} onChange={e => setEditedDateInput(e.target.value)} />
+                            ) : (
+                              new Date(trx.date_input).toLocaleDateString('id-ID')
+                            )}
+                          </td>
+                          <td className="py-3 text-sm text-gray-800">{trx.category?.name ?? ""}</td>
+                          <td className={`py-3 text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>
+                            {trx.is_expense ? "-" : "+"}{(trx.total ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+                          </td>
+                          <td className="py-3 text-sm text-gray-800">{trx.note}</td>
+                          <td className="py-3 text-sm text-center text-gray-800">
+                            {editingId === trx.id ? (
+                              <>
+                                <Button onClick={() => saveEdit(trx)} className="mr-2" variant="primary">Save</Button>
+                                <Button onClick={() => setEditingId(null)} variant="secondary" className="ml-1">Cancel</Button>
+                              </>
+                            ) : (
+                              <Menu>
+                                <MenuTrigger>
+                                  <button className="bg-yellow-500 text-white rounded px-2 py-1">Actions</button>
+                                </MenuTrigger>
+                                <MenuContent align="start">
+                                  <MenuItem onClick={() => startEdit(trx)}>Update</MenuItem>
+                                  <MenuItem onClick={() => deleteTxn(trx.id)}>Delete</MenuItem>
+                                </MenuContent>
+                              </Menu>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                      :
+                      <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500 text-center">No transactions for this page</td></tr>
+                  )
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Confirmation modal for Save/Delete actions */}

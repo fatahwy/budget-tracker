@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
@@ -6,11 +6,11 @@ import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     const clientId = session?.user?.clientId;
-    const id = params.id;
+    const { id } = await context.params;
 
     if (!clientId) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -29,11 +29,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     const clientId = session?.user?.clientId;
-    const id = params.id;
+    const { id } = await context.params;
 
     if (!clientId) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -44,7 +44,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const { username, email, password } = await req.json();
+    const { username, email, password } = await request.json();
 
     if (!username && !email && !password) {
       return NextResponse.json({ message: 'No fields to update' }, { status: 400 });
@@ -67,11 +67,11 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     const clientId = session?.user?.clientId;
-    const id = params.id;
+    const { id } = await context.params;
 
     if (!clientId) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
