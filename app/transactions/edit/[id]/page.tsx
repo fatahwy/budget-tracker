@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../api/auth/[...nextauth]/route';
 import { EditTransactionForm } from './form';
+export const metadata = { title: 'Update Transaction' };
 
 export default async function EditTransactionPage({ params }: { params: { id: string } }) {
     const prisma = new PrismaClient();
@@ -36,11 +37,9 @@ export default async function EditTransactionPage({ params }: { params: { id: st
     };
 
     return (
-        <div className="flex justify-center pt-10">
-            <div className="w-full max-w-md rounded-lg p-8 shadow-md">
-                <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Update Transaction</h1>
-                <EditTransactionForm initial={initial} categories={categories} trxId={trxId} />
-            </div>
+        <div className="w-full max-w-md rounded-lg p-8 shadow-md">
+            <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Update Transaction</h1>
+            <EditTransactionForm initial={initial} categories={categories} trxId={trxId} />
         </div>
     );
 }

@@ -1,7 +1,16 @@
 import path from 'path';
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
+let withPWA: (config: NextConfig) => NextConfig = (cfg) => cfg;
+try {
+  // @ts-ignore
+  withPWA = require('next-pwa');
+} catch {
+  // Fallback: no PWA support if next-pwa is not installed
+  withPWA = (cfg) => cfg;
+}
+
+const nextConfigBase: NextConfig = {
   webpack(config) {
     config.resolve = {
       ...(config.resolve || {}),
@@ -14,4 +23,10 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+const configWithPWA = withPWA({
+  ...nextConfigBase,
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+});
+
+export default configWithPWA;

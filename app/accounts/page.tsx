@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
+import Link from 'next/link';
 
 type Account = {
   id: string;
@@ -15,9 +16,7 @@ type Account = {
 
 export default function AccountsCRUD() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
@@ -38,35 +37,6 @@ export default function AccountsCRUD() {
       setError('Unable to load accounts');
     } finally {
       setLoadingAccounts(false);
-    }
-  }
-
-  async function createAccount(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!newName.trim()) {
-      setError('Account name is required');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message ?? 'Failed to create account');
-      } else {
-        setNewName('');
-        await fetchAccounts();
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to create account');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -112,36 +82,33 @@ export default function AccountsCRUD() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Accounts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={createAccount} className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              placeholder="New account name"
-              value={newName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
-            />
-            <Button type="submit" variant="primary" disabled={loading}>
-              {loading ? 'Creating…' : 'Create Account'}
-            </Button>
-          </form>
+    <Card className="max-w-2xl">
+      <CardHeader className='flex justify-between'>
+        <CardTitle>Accounts</CardTitle>
+        <div className="flex">
+          <Link href="/users/new" className={`rounded-md bg-green-600 px-3 py-1 text-white`}>
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+              </svg>
+              Account
+            </span>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
 
-          {loadingAccounts && <div className="text-sm mb-4 text-gray-600">Memuat akun...</div>}
-          {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
-
-          <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="overflow-x-auto">
+          <table className="min-w-full border">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <tr className="border-b">
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Account</th>
+                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Balance</th>
+                <th className="px-2 py-1 text-right text-sm font-semibold text-gray-500">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody >
               {
                 loadingAccounts ?
                   <tr>
@@ -153,8 +120,8 @@ export default function AccountsCRUD() {
                   (
                     accounts.length > 0 ?
                       accounts.map((a) => (
-                        <tr key={a.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <tr key={a.id} className="border-b">
+                          <td className="p-2 text-sm text-gray-800">
                             {editing === a.id ? (
                               <Input
                                 className="border rounded px-2 py-1"
@@ -165,35 +132,26 @@ export default function AccountsCRUD() {
                               a.name
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                          <td className="p-2 text-sm text-gray-800">
                             {Number(a.balance ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
                           </td>
-                          <td className="py-3 text-sm text-center text-gray-800">
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"> */}
-                            { editing === a.id ? (
-                              <Menu>
-                                <MenuTrigger>
-                                  <button className="px-2 py-1 rounded bg-gray-100">Actions</button>
-                                </MenuTrigger>
-                                <MenuContent align="start">
-                                  <MenuItem onClick={() => updateAccount(a.id)}>Save</MenuItem>
-                                  <MenuItem onClick={() => setEditing(null)}>Cancel</MenuItem>
-                                </MenuContent>
-                              </Menu>
-                            ) : (
-                              <Menu>
-                                <MenuTrigger>
-                                  <button className="px-2 py-1 rounded bg-gray-100">Actions</button>
-                                </MenuTrigger>
-                                <MenuContent align="start">
-                                  <MenuItem onClick={() => {
+                          <td className="p-2 text-sm text-gray-800">
+                            <div className='flex gap-1 justify-end'>
+                              {editing === a.id ? (
+                                <>
+                                  <Button variant='success' onClick={() => updateAccount(a.id)}>Save</Button>
+                                  <Button variant='secondary' onClick={() => setEditing(null)}>Cancel</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button variant='primary' onClick={() => {
                                     setEditing(a.id);
                                     setEditName(a.name);
-                                  }}>Edit</MenuItem>
-                                  <MenuItem onClick={() => deleteAccount(a.id)}>Delete</MenuItem>
-                                </MenuContent>
-                              </Menu>
-                            )}
+                                  }}>Edit</Button>
+                                  <Button variant='danger' onClick={() => deleteAccount(a.id)}>Delete</Button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -207,9 +165,8 @@ export default function AccountsCRUD() {
               }
             </tbody>
           </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

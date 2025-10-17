@@ -4,6 +4,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { CreateUserForm } from '../CreateUserForm';
 
+export const metadata = { title: 'Create User' };
+
 export default function CreateUserPage() {
   const handleUserCreated = () => {
     if (typeof window !== 'undefined') {

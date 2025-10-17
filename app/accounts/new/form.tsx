@@ -26,7 +26,7 @@ export function NewAccountForm() {
 
     if (response.ok) {
       setSuccess(data.message);
-      router.push('/dashboard');
+      router.push('/accounts');
     } else {
       setError(data.message);
     }

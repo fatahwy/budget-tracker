@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Menu, MenuTrigger, MenuContent, MenuItem } from '../components/ui/menu';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
 type User = {
   id: string;
@@ -95,66 +96,85 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className='flex justify-between items-center'>
-        <h1 className="text-2xl font-bold mb-4">Users</h1>
-        <Link href="/users/new" className="bg-green-600 text-white rounded px-3 py-1">Create User</Link>
-      </div>
+    <Card className="max-w-3xl">
+      <CardHeader className="flex justify-between">
+        <CardTitle>Users</CardTitle>
+        <div className="flex">
+          <Link href="/users/new" className={`rounded-md bg-green-600 px-3 py-1 text-white`}>
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+              </svg>
+              User
+            </span>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error && <div className="bg-red-100 text-red-700 p-2 rounded mb-4">{error}</div>}
 
-      {error && <div className="bg-red-100 text-red-700 p-2 rounded mb-4">{error}</div>}
-
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
         <div className="w-full overflow-x-auto">
-          <table className="min-w-full border min-h-full">
+          <table className="min-w-full border">
             <thead>
               <tr className="border-b">
                 <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">ID</th>
                 <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Username</th>
                 <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Email</th>
-                <th className="px-2 py-1 text-left text-sm font-semibold text-gray-500">Actions</th>
+                <th className="px-2 py-1 text-right text-sm font-semibold text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-b">
-                  <td className="px-2 py-2 text-sm text-gray-700">{u.id}</td>
-                  <td className="px-2 py-2 text-sm text-gray-700">{u.username}</td>
-                  <td className="px-2 py-2 text-sm text-gray-700">
-                    {editingId === u.id ? (
-                      <input value={editingEmail} onChange={(e) => setEditingEmail(e.target.value)} className="border rounded px-2 py-1" />
-                    ) : (
-                      u.email
-                    )}
-                  </td>
-                  <td className="py-3 text-sm text-gray-800">
-                    {editingId === u.id ? (
-                      <>
-                        <input type="password" placeholder="New password" value={editingPassword} onChange={(e) => setEditingPassword(e.target.value)} className="ml-2 border rounded px-2 py-1" />
-                        <button className="mx-2 bg-blue-500 text-white rounded px-2 py-1" onClick={() => saveEdit(u)}>Save</button>
-                        <button className=" bg-gray-300 rounded px-2 py-1" onClick={cancelEdit}>Cancel</button>
-                      </>
-                    ) : (
-                      <>
-                        <Menu>
-                          <MenuTrigger>
-                            <button className="bg-yellow-500 text-white rounded px-2 py-1">Actions</button>
-                          </MenuTrigger>
-                          <MenuContent align="start">
-                            <MenuItem onClick={() => startEdit(u)}>Update</MenuItem>
-                            <MenuItem onClick={() => deleteUser(u.id)}>Delete</MenuItem>
-                          </MenuContent>
-                        </Menu>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {
+                loading ?
+                  <tr>
+                    <td colSpan={4} className="px-6 py-4 text-sm text-gray-500 text-center">
+                      Loading...
+                    </td>
+                  </tr>
+                  :
+                  (
+                    users.length > 0 ?
+                      users.map((u) => (
+                        <tr key={u.id} className="border-b">
+                          <td className="p-2 text-sm text-gray-700">{u.id}</td>
+                          <td className="p-2 text-sm text-gray-700">{u.username}</td>
+                          <td className="p-2 text-sm text-gray-700">
+                            {editingId === u.id ? (
+                              <input value={editingEmail} onChange={(e) => setEditingEmail(e.target.value)} className="border rounded px-2 py-1" />
+                            ) : (
+                              u.email
+                            )}
+                          </td>
+                          <td className="py-3 p-2 text-sm text-gray-800">
+                            <div className='flex gap-1 justify-end'>
+                              {editingId === u.id ? (
+                                <>
+                                  <input type="password" placeholder="New password" value={editingPassword} onChange={(e) => setEditingPassword(e.target.value)} className="border rounded px-2 py-1" />
+                                  <Button variant='success' onClick={() => saveEdit(u)}>Save</Button>
+                                  <Button variant='secondary' onClick={cancelEdit}>Cancel</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button variant='primary' onClick={() => startEdit(u)}>Update</Button>
+                                  <Button variant='danger' onClick={() => deleteUser(u.id)}>Delete</Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                      :
+                      <tr>
+                        <td colSpan={4} className="px-6 py-4 text-sm text-gray-500 text-center">
+                          No users found. Create one to get started.
+                        </td>
+                      </tr>
+                  )
+              }
             </tbody>
           </table>
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

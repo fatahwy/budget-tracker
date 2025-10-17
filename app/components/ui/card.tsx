@@ -1,5 +1,5 @@
 export const Card: React.FC<{ className?: string; children?: React.ReactNode }> = ({ className = '', children }) => {
-  return <div className={`rounded border bg-white shadow-sm ${className}`}>{children}</div>;
+  return <div className={`w-full rounded border bg-white shadow-sm ${className}`}>{children}</div>;
 };
 
 export const CardHeader: React.FC<{ className?: string; children?: React.ReactNode }> = ({ className = '', children }) => {

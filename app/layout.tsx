@@ -24,15 +24,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const path = usePathname();
+  const isPublic = path.startsWith('/login') || path.startsWith('/signup');
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {!path.startsWith('/login') && !path.startsWith('/signup') && (
+        {!isPublic && (
           <Header />
         )}
-        <div className="pt-16">
+        <div className={isPublic ? '' : "pt-25 p-5 flex justify-center"}>
           <Providers>{children}</Providers>
         </div>
       </body>
