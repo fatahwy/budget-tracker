@@ -7,12 +7,7 @@ export const metadata = { title: 'Update Transaction' };
 export default async function EditTransactionPage({ params }: { params: { id: string } }) {
     const prisma = new PrismaClient();
     const session = await getServerSession(authOptions);
-    const clientId = session?.user?.clientId;
     const accountId = session?.user?.defaultAccountId;
-
-    if (!clientId) {
-        return <div>Error: Not logged in</div>;
-    }
 
     const trxId = params?.id;
     const trx = await prisma.trx.findUnique({ where: { id: trxId }, include: { account: true, category: true } });

@@ -1,11 +1,16 @@
 import React from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'danger' | 'success';
   className?: string;
 };
 
-export function Button({ variant = 'primary', className = '', ...props }: ButtonProps) {
+export function Button({ variant = 'primary', className = '', title, disabled, ...props }: ButtonProps) {
   const base = 'px-2 py-1 rounded cursor-pointer';
   const variantClass = {
     primary: 'bg-blue-600 text-white',
@@ -14,7 +19,18 @@ export function Button({ variant = 'primary', className = '', ...props }: Button
     danger: 'bg-red-600 text-white',
   }
 
-  return (
-    <button className={`${base} ${variantClass[variant] || ''} ${className}`} {...props} />
-  );
+  const btn = <button className={`${base} ${variantClass[variant] || ''} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} {...props} />;
+
+  if (title) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{btn}</TooltipTrigger>
+        <TooltipContent>
+          {title}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return btn;
 }

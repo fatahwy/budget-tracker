@@ -6,12 +6,7 @@ export const metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  const clientId = session?.user?.clientId;
   const accountId = session?.user?.defaultAccountId;
-
-  if (!clientId) {
-    return <div>Error: Not logged in</div>;
-  }
 
   return (
     <ClientDashboard

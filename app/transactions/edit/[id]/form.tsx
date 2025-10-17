@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Category } from '@prisma/client';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { Button } from '@/app/components/ui/button';
 
 type Props = {
   initial: { total: number, dateInput: string, categoryId: string, note?: string, isExpense: boolean, accountId: string },
@@ -49,10 +49,10 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
         router.push('/dashboard');
       } else {
         setError(data?.message ?? 'Something went wrong');
+        setLoading(false);
       }
     } catch {
       setError('Something went wrong');
-    } finally {
       setLoading(false);
     }
   }
@@ -96,12 +96,20 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
       {success && <p className="text-sm text-green-600">{success}</p>}
 
       <div className="flex justify-end space-x-2">
-        <Link href='/dashboard' className="rounded-md bg-gray-300 px-4 py-2 text-gray-800">
+        <Button
+          type='button'
+          variant="secondary"
+          onClick={() => router.push('/dashboard')}
+        >
           Back
-        </Link>
-        <button type="submit" className="rounded-md bg-indigo-600 px-4 py-2 text-white" disabled={loading}>
+        </Button>
+        <Button
+          type="submit"
+          variant='success'
+          disabled={loading}
+        >
           {loading ? 'Loading...' : 'Update'}
-        </button>
+        </Button>
       </div>
     </form>
   );

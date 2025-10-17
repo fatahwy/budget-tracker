@@ -5,12 +5,9 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import CreatableSelect from 'react-select/creatable';
 import { Category } from '@prisma/client';
+import { Button } from '@/app/components/ui/button';
 
-interface NewTransactionFormProps {
-  categories: Category[];
-}
-
-export function NewTransactionForm({ categories }: NewTransactionFormProps) {
+export function NewTransactionForm() {
   const [total, setTotal] = useState(0);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -21,6 +18,9 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+
+  const [localCategories, setLocalCategories] = useState<Category[]>([]);
+
   const formSchema = z.object({
     total: z.number().gt(0, { message: 'Total must be greater than 0' }),
     categoryId: z.string(),
@@ -34,7 +34,22 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
     setHasMounted(true);
   }, []);
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        const cats = data?.categories as Category[] | undefined;
+        if (cats && Array.isArray(cats)) {
+          setLocalCategories(cats);
+        }
+      })
+      .catch(() => { })
+  }, []);
+
+  const categoryOptions = localCategories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,10 +94,10 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
         router.push('/dashboard');
       } else {
         setError(data.message);
+        setIsLoading(false);
       }
     } catch {
       setError('Something went wrong');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -125,11 +140,13 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
-        {hasMounted && <CreatableSelect
-          isClearable
-          onChange={(option) => setCategoryId(option?.value || null)}
-          options={categoryOptions}
-        />}
+        {hasMounted && (
+          <CreatableSelect
+            isClearable
+            onChange={(option) => setCategoryId(option?.value || null)}
+            options={categoryOptions}
+          />
+        )}
         {fieldErrors.categoryId && <p className="text-sm text-red-600 mt-1">{fieldErrors.categoryId}</p>}
       </div>
       <div>
@@ -138,7 +155,7 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
           type="text"
           value={total}
           onChange={(e) => {
-            const v = parseInt(e.target.value.replace(/[^\d]/g, ''));
+            const v = e.target.value ? parseInt(e.target.value.replace(/[^\d]/g, '')) : 0;
             setTotal(v);
           }}
           className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.total ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
@@ -159,35 +176,28 @@ export function NewTransactionForm({ categories }: NewTransactionFormProps) {
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}
       <div className="flex space-x-4 justify-end">
-        <button
-          type="button"
+        <Button
+          type='button'
+          variant="secondary"
           onClick={() => router.push('/dashboard')}
-          className="rounded-md bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2"
         >
           Back
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
-          className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          variant='success'
           disabled={isLoading}
         >
-          {isLoading ? (
-            <span className="flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
-                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-              </svg>
-              <span>Loading...</span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
-              </svg>
-              <span>Save</span>
-            </span>
-          )}
-        </button>
+          {isLoading ? 'Loading...'
+            : (
+              <span className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+                </svg>
+                <span>Save</span>
+              </span>
+            )}
+        </Button>
       </div>
     </form>
   );

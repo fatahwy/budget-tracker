@@ -1,8 +1,9 @@
 'use client';
-import Link from "next/link";
 import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Pencil, Plus, Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Account = {
   id: string;
@@ -51,6 +52,8 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  const router = useRouter();
 
   async function fetchAccounts() {
     setLoadingAccounts(true);
@@ -118,26 +121,20 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
     <Card className="max-w-4xl">
       <CardHeader className="flex justify-between">
         <CardTitle>Dashboard</CardTitle>
-        <div className="flex">
-          <Link href={canCreateTransaction ? "/transactions/new" : ''} className={`rounded-md bg-green-600 px-3 py-1 text-white ${canCreateTransaction ? '' : 'opacity-50'}`}>
-            <span className="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
-              </svg>
-              Transaction
-            </span>
-          </Link>
-        </div>
+        <Button className="flex items-center gap-2" variant="success" onClick={canCreateTransaction ? () => router.push("/transactions/new") : undefined} disabled={!canCreateTransaction}>
+          <Plus />
+          Transaction
+        </Button>
       </CardHeader>
       <CardContent>
         {!hasAccounts && !loadingAccounts ? (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4" role="alert">
-            <strong className="font-semibold">Perhatian:</strong> Belum ada akun. Buat akun untuk mulai input transaksi.
+            <strong className="font-semibold">Warning:</strong> No account yet. Create one to start inputing transactions.
           </div>
         ) : (
           <>
             <div className="mb-2 text-lg font-semibold">
-              Balance: {balanceFromAccounts.toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+              Balance: {balanceFromAccounts.toLocaleString('id-ID')}
             </div>
 
             {
@@ -219,20 +216,20 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
                       list.map((trx, idx) => (
                         <tr key={trx.id} className="border-b">
                           <td className="p-2 text-sm text-gray-800">{(currentPage - 1) * pageSize + idx + 1}</td>
-                          <td className="p-2 text-sm text-gray-800">
-                            {
-                              new Date(trx.date_input).toLocaleDateString('id-ID')
-                            }
-                          </td>
+                          <td className="p-2 text-sm text-gray-800">{new Date(trx.date_input).toLocaleDateString('id-ID')}</td>
                           <td className="p-2 text-sm text-gray-800">{trx.category?.name ?? ""}</td>
-                          <td className={`p-2 text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>
-                            {trx.is_expense ? "-" : "+"}{(trx.total ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
-                          </td>
+                          <td className={`p-2 text-sm ${trx.is_expense ? "text-red-600" : "text-green-600"}`}>{trx.is_expense ? "-" : "+"}{(trx.total ?? 0).toLocaleString('id-ID')}</td>
                           <td className="p-2 text-sm text-gray-800">{trx.note}</td>
                           <td className="p-2 text-sm text-right text-gray-800">
                             <div className='flex gap-1 justify-end'>
-                              <Link className="bg-blue-600 text-white px-2 py-1 rounded cursor-pointer" href={`/transactions/edit/${trx.id}`}>Update</Link>
-                              <Button variant="danger" onClick={() => deleteTxn(trx.id)}>Delete</Button>
+                              <Button
+                                variant="primary"
+                                onClick={() => router.push(`/transactions/edit/${trx.id}`)}
+                                title="Update"
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                              <Button variant="danger" onClick={() => deleteTxn(trx.id)} className="flex gap-1 items-center" title="Delete"><Trash size={14} /></Button>
                             </div>
                           </td>
                         </tr>
@@ -245,21 +242,19 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
           </table>
         </div>
 
-        {/* Confirmation modal for Save/Delete actions */}
+        {/* Confirmation modal for Delete actions */}
         {confirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="bg-white rounded shadow p-6 w-96">
               <div className="font-semibold text-lg mb-2">
-                {confirmModal.type === 'save' ? 'Konfirmasi Simpan Transaksi' : 'Konfirmasi Hapus Transaksi'}
+                Confirmation
               </div>
               <div className="text-sm mb-4">
-                {confirmModal.type === 'save'
-                  ? 'Apakah Anda yakin ingin menyimpan perubahan pada transaksi ini?'
-                  : 'Apakah Anda yakin ingin menghapus transaksi ini?'}
+                Are you sure you want to delete this transaction?
               </div>
               <div className="flex justify-end space-x-2">
                 <button className="px-3 py-1 rounded bg-gray-300" onClick={() => setConfirmModal(null)}>
-                  Batal
+                  Cancel
                 </button>
                 <button className={`px-3 py-1 rounded ${confirmModal.type === 'save' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`} onClick={handleModalConfirm}>
                   Confirm
