@@ -1,16 +1,20 @@
 'use client';
-import React, { useState } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Category } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
+import CreatableSelect from 'react-select/creatable';
+import axios from 'axios';
+import { ArrowLeft, Pencil } from 'lucide-react';
+import { FormInput } from '@/app/components/ui/FormInput';
 
 type Props = {
   initial: { total: number, dateInput: string, categoryId: string, note?: string, isExpense: boolean, accountId: string },
-  categories: Category[],
   trxId: string
 };
 
-export function EditTransactionForm({ initial, categories, trxId }: Props) {
+export function EditTransactionForm({ initial, trxId }: Props) {
   const [total, setTotal] = useState<number>(initial.total ?? 0);
   const [categoryId, setCategoryId] = useState<string>(initial.categoryId ?? '');
   const [note, setNote] = useState<string>(initial.note ?? '');
@@ -20,9 +24,22 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string, label: string }[]>([]);
 
   const router = useRouter();
+
+  useEffect(() => {
+    axios.get('/api/categories')
+      .then((res) => {
+        const data = res.data;
+        const cats = data?.categories as Category[] | undefined;
+        if (cats && Array.isArray(cats)) {
+          const categoryOptions = cats.map((c) => ({ value: c.id, label: c.name }));
+          setCategoryOptions(categoryOptions);
+        }
+      })
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +50,8 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
     const payload = {
       id: trxId,
       total,
+      isExpense,
+      categoryId,
       dateInput,
       note,
     };
@@ -57,38 +76,74 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
     }
   }
 
+  let categorySelect = categoryOptions.find(c => c.value === categoryId);
+  if (!categorySelect && categoryId) {
+    categorySelect = { value: categoryId, label: categoryId };
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-gray-700">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Date</label>
-        <input
-          type="date"
+        <FormInput
+          label="Date"
           value={dateInput}
           onChange={(e) => setDateInput(e.target.value)}
-          className="block w-full rounded-md px-3 py-2 shadow-sm border"
+          type="date"
+          error={null}
         />
       </div>
-
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Total</label>
-        <input
-          type="text"
-          value={total}
+        <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
+        <div className="flex items-center space-x-4">
+          <label>
+            <input
+              type="radio"
+              checked={isExpense}
+              onChange={() => setIsExpense(true)}
+              className="mr-1"
+            />
+            Expense
+          </label>
+          <label>
+            <input
+              type="radio"
+              checked={!isExpense}
+              onChange={() => setIsExpense(false)}
+              className="mr-1"
+            />
+            Income
+          </label>
+        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
+        <CreatableSelect
+          isClearable
+          value={categorySelect}
+          onChange={(option) => setCategoryId(option?.value || '')}
+          options={categoryOptions}
+        />
+      </div>
+      <div>
+        <FormInput
+          label="Total"
+          value={String(total)}
           onChange={(e) => {
-            const v = parseInt(e.target.value.replace(/[^\d]/g, '')) || 0;
+            const v = e.target.value ? parseInt(e.target.value.replace(/[^\d]/g, '')) : 0;
             setTotal(v);
           }}
-          className="block w-full rounded-md px-3 py-2 shadow-sm border"
-          required
+          type="text"
+          error={null}
         />
       </div>
-
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Note</label>
-        <textarea
+        <FormInput
+          label="Note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className={`block w-full rounded-md px-3 py-2 shadow-sm border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500`}
+          as="textarea"
+          rows={4}
+          error={null}
         />
       </div>
 
@@ -100,7 +155,9 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
           type='button'
           variant="secondary"
           onClick={() => router.push('/dashboard')}
+          className='flex items-center gap-1'
         >
+          <ArrowLeft/>
           Back
         </Button>
         <Button
@@ -108,7 +165,12 @@ export function EditTransactionForm({ initial, categories, trxId }: Props) {
           variant='success'
           disabled={loading}
         >
-          {loading ? 'Loading...' : 'Update'}
+          {loading ? 'Loading...' : 
+          <div className='flex items-center gap-1'>
+            <Pencil size={14} />
+            Update
+          </div>
+          }
         </Button>
       </div>
     </form>

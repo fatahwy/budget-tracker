@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import CreatableSelect from 'react-select/creatable';
 import { Category } from '@prisma/client';
 import { Button } from '@/app/components/ui/button';
+import { FormInput } from '@/app/components/ui/FormInput';
 
 export function NewTransactionForm() {
   const [total, setTotal] = useState(0);
@@ -19,7 +21,7 @@ export function NewTransactionForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
-  const [localCategories, setLocalCategories] = useState<Category[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string, label: string }[]>([]);
 
   const formSchema = z.object({
     total: z.number().gt(0, { message: 'Total must be greater than 0' }),
@@ -35,21 +37,17 @@ export function NewTransactionForm() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/categories')
-      .then((res) => res.json())
-      .then((data) => {
+    axios.get('/api/categories')
+      .then((res) => {
+        const data = res.data;
         const cats = data?.categories as Category[] | undefined;
         if (cats && Array.isArray(cats)) {
-          setLocalCategories(cats);
+          const categoryOptions = cats.map((c) => ({ value: c.id, label: c.name }));
+          setCategoryOptions(categoryOptions);
         }
       })
       .catch(() => { })
   }, []);
-
-  const categoryOptions = localCategories.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,21 +77,15 @@ export function NewTransactionForm() {
     setFieldErrors({});
 
     try {
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(parsed),
-      });
+      const res = await axios.post('/api/transactions', parsed);
 
-      const data = await response.json();
+      const data = res.data;
 
-      if (response.ok) {
+      if (res.status >= 200 && res.status < 300) {
         setSuccess(data.message);
         router.push('/dashboard');
       } else {
-        setError(data.message);
+        setError(data?.message ?? 'Something went wrong');
         setIsLoading(false);
       }
     } catch {
@@ -105,15 +97,13 @@ export function NewTransactionForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-gray-700">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Date</label>
-        <input
-          type="date"
+        <FormInput
+          label="Date"
           value={dateInput}
           onChange={(e) => setDateInput(e.target.value)}
-          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.dateInput ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
-          required
+          type="date"
+          error={fieldErrors.dateInput}
         />
-        {fieldErrors.dateInput && <p className="text-sm text-red-600 mt-1">{fieldErrors.dateInput}</p>}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
@@ -150,28 +140,25 @@ export function NewTransactionForm() {
         {fieldErrors.categoryId && <p className="text-sm text-red-600 mt-1">{fieldErrors.categoryId}</p>}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Total</label>
-        <input
-          type="text"
-          value={total}
+        <FormInput
+          label="Total"
+          value={String(total)}
           onChange={(e) => {
             const v = e.target.value ? parseInt(e.target.value.replace(/[^\d]/g, '')) : 0;
             setTotal(v);
           }}
-          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.total ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
-          required
+          type="text"
+          error={fieldErrors.total}
         />
-        {fieldErrors.total && <p className="text-sm text-red-600 mt-1">{fieldErrors.total}</p>}
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Note</label>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className={`block w-full rounded-md px-3 py-2 shadow-sm border ${fieldErrors.note ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'} focus:border-indigo-500 focus:ring-indigo-500`}
-        />
-        {fieldErrors.note && <p className="text-sm text-red-600 mt-1">{fieldErrors.note}</p>}
-      </div>
+      <FormInput
+        label="Note"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        as="textarea"
+        rows={4}
+        error={fieldErrors.note}
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}

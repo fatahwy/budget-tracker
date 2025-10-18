@@ -69,7 +69,7 @@ export async function GET(req: Request) {
       balance: (a.trx ?? []).reduce((sum: number, t: TrxInfo) => sum + (t.is_expense ? -t.total : t.total), 0)
     }));
 
-    return NextResponse.json({ accounts }, { status: 200 });
+    return NextResponse.json(accounts, { status: 200 });
 
   } catch (error) {
     console.error(error);

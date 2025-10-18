@@ -11,12 +11,12 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function Button({ variant = 'primary', className = '', title, disabled, ...props }: ButtonProps) {
-  const base = 'px-2 py-1 rounded cursor-pointer';
+  const base = 'px-3 py-2 rounded cursor-pointer';
   const variantClass = {
-    primary: 'bg-blue-600 text-white',
-    success: 'bg-green-600 text-white',
-    secondary: 'bg-gray-200 text-gray-900',
-    danger: 'bg-red-600 text-white',
+    primary: `bg-indigo-600 text-white ${!disabled && `hover:bg-indigo-700`}`,
+    success: `bg-green-600 text-white ${!disabled && `hover:bg-green-700`}`,
+    secondary: `bg-gray-200 text-gray-900 ${!disabled && `hover:bg-gray-300`}`,
+    danger: `bg-red-600 text-white ${!disabled && `hover:bg-red-700`}`,
   }
 
   const btn = <button className={`${base} ${variantClass[variant] || ''} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} {...props} />;

@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import { useApi } from '../hooks/useApi';
 
 type Account = {
   id: string;
@@ -24,7 +26,7 @@ type Transaction = {
 
 export default function ClientDashboard({ defaultAccountId }: { defaultAccountId?: string; }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>(defaultAccountId ?? accounts?.[0]?.id ?? "");
+  const [selectedAccount, setSelectedAccount] = useState<string>(defaultAccountId ?? "");
   const [list, setList] = useState<Transaction[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -44,30 +46,30 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
   const [totalCount, setTotalCount] = useState<number>(list?.length ?? 0);
   const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
 
-  useEffect(() => { if (currentPage > totalPages) setCurrentPage(1); }, [totalPages]);
-
-  // UI default account
-  useEffect(() => { if (!selectedAccount && accounts && accounts.length > 0) { setSelectedAccount(accounts[0].id); } }, [accounts]);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
   const router = useRouter();
+  const { request } = useApi();
 
+  // Fetch accounts
   async function fetchAccounts() {
     setLoadingAccounts(true);
     try {
-      const res = await fetch('/api/accounts', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch accounts');
-      const data = await res.json();
-      setAccounts(data.accounts ?? []);
+      const res = await request<Account[]>({ url: '/api/accounts', method: 'GET', withCredentials: true });
+      const data = res?.data ?? [];
+      setAccounts(data ?? []);
+      // If there was no initial selected account, pick the first
+      if (!selectedAccount && data && data.length > 0) {
+        setSelectedAccount(data[0].id);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingAccounts(false);
     }
   }
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   const balanceFromAccounts = useMemo(() => accounts?.find(a => a.id === selectedAccount)?.balance ?? 0, [accounts, selectedAccount]);
 
@@ -79,13 +81,15 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
 
   const performDelete = async (id: string) => {
     try {
-      const res = await fetch('/api/transactions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-      if (res.ok) {
+      const res = await request<{ message?: string }>({ url: '/api/transactions', method: 'DELETE', data: { id } });
+      if (res.status >= 200 && res.status < 300) {
         setList(prev => prev.filter(t => t.id !== id));
         if (editingId === id) setEditingId(null);
         fetchAccounts();
       }
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   };
 
   const handleModalConfirm = async () => {
@@ -99,30 +103,32 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
   // Fetch transactions when the selected account changes
   useEffect(() => {
     if (!selectedAccount) return;
-    (async () => {
-      setLoadingTransactions(true);
-      try {
-        const res = await fetch(`/api/transactions?accountId=${selectedAccount}&page=${currentPage}&limit=${pageSize}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.transactions) setList(data.transactions);
-          if (typeof data?.total === 'number') setTotalCount(data.total);
-        }
-      } catch {
-        // Ignore fetch errors for resilience
-      } finally {
+    fetchTransactions();
+  }, [selectedAccount, currentPage]);
+
+  const fetchTransactions = async () => {
+    setLoadingTransactions(true);
+    try {
+      const res = await request<{ data: Transaction[]; total?: number; }>({ url: `/api/transactions?accountId=${selectedAccount}&page=${currentPage}&limit=${pageSize}`, method: 'GET' });
+      const data = res?.data ?? {};
+      if (data?.data) {
+        setList(data.data);
         setLoadingTransactions(false);
       }
-    })();
-  }, [selectedAccount, currentPage]);
+      if (typeof data?.total === 'number') setTotalCount(data.total);
+    } catch (err) {
+      console.error(err);
+      setLoadingTransactions(false);
+    }
+  };
 
   // UI
   return (
     <Card className="max-w-4xl">
       <CardHeader className="flex justify-between">
         <CardTitle>Dashboard</CardTitle>
-        <Button className="flex items-center gap-2" variant="success" onClick={canCreateTransaction ? () => router.push("/transactions/new") : undefined} disabled={!canCreateTransaction}>
-          <Plus />
+        <Button className="flex items-center gap-1 text-sm" variant="success" onClick={canCreateTransaction ? () => router.push("/transactions/new") : undefined} disabled={!canCreateTransaction}>
+          <Plus size={14} />
           Transaction
         </Button>
       </CardHeader>
@@ -147,11 +153,7 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
                     const value = e.target.value;
                     setSelectedAccount(value);
                     if (value) {
-                      await fetch('/api/users/default-account', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ accountId: value }),
-                      });
+                      await request<{ success?: boolean }>({ url: '/api/users/default-account', method: 'PATCH', data: { accountId: value } });
                     }
                   }}
                   className="border rounded px-3 py-2"
@@ -171,7 +173,7 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm text-gray-600">Page {currentPage} of {totalPages}</div>
             <div className="space-x-1 text-sm">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-2 py-1 border rounded" aria-label="Previous page">Prev</button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-2 py-1 border rounded cursor-pointer" aria-label="Previous page">Prev</button>
               {Array.from({ length: totalPages }).map((_, i) => {
                 const page = i + 1;
                 const isActive = page === currentPage;
@@ -179,7 +181,7 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-2 py-1 rounded border ${isActive ? "bg-blue-600 text-white" : "bg-white text-gray-800"}`}
+                    className={`px-2 py-1 rounded border cursor-pointer ${isActive ? "bg-blue-600 text-white" : "bg-white text-gray-800"}`}
                     aria-label={`Page ${page}`}
                     style={{ minWidth: 32 }}
                   >
@@ -187,7 +189,7 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
                   </button>
                 );
               })}
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-2 py-1 border rounded" aria-label="Next page">Next</button>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-2 py-1 border rounded cursor-pointer" aria-label="Next page">Next</button>
             </div>
           </div>
         )}
@@ -244,24 +246,12 @@ export default function ClientDashboard({ defaultAccountId }: { defaultAccountId
 
         {/* Confirmation modal for Delete actions */}
         {confirmModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded shadow p-6 w-96">
-              <div className="font-semibold text-lg mb-2">
-                Confirmation
-              </div>
-              <div className="text-sm mb-4">
-                Are you sure you want to delete this transaction?
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button className="px-3 py-1 rounded bg-gray-300" onClick={() => setConfirmModal(null)}>
-                  Cancel
-                </button>
-                <button className={`px-3 py-1 rounded ${confirmModal.type === 'save' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`} onClick={handleModalConfirm}>
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmModal
+            open={!!confirmModal}
+            onCancel={() => setConfirmModal(null)}
+            onConfirm={handleModalConfirm}
+            message='Are you sure you want to delete this transaction?'
+          />
         )}
       </CardContent>
     </Card>

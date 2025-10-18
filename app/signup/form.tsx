@@ -1,8 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { FormInput } from '@/app/components/ui/FormInput';
 import { useState } from 'react';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '../components/ui/button';
 
 export function SignUpForm() {
   const [username, setUsername] = useState('');
@@ -11,6 +14,7 @@ export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const router = useRouter();
 
@@ -23,74 +27,77 @@ export function SignUpForm() {
       setError('Invalid email format');
       return;
     }
+    setIsSubmitting(true);
 
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name, username, email, password }),
-    });
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, username, email, password }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.ok) {
-      setSuccess(data.message);
-      router.push('/login');
-    } else {
-      setError(data.message);
+      if (response.ok) {
+        setSuccess(data.message);
+        router.push('/login');
+      } else {
+        setError(data.message);
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      setError('Something went wrong');
+      setIsSubmitting(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-gray-700">
+      <FormInput
+        label="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        type="text"
+        placeholder="Username"
+      />
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Username</label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          required
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-        <input
-          type="email"
+        <FormInput
+          label="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          required
+          type="email"
+          placeholder="Email"
         />
       </div>
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
-        <div className="relative">
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="block w-full pr-10 rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            required
-          />
+      <div className="mb-4 relative">
+        <FormInput
+          label="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          type={showPassword ? 'text' : 'password'}
+          placeholder="Password"
+        />
+        {password.length > 0 && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 px-3 py-2 text-sm text-gray-600"
+            className="absolute right-2 top-8 text-sm text-indigo-600"
+            aria-label="Toggle password visibility"
           >
-            {showPassword ? 'Hide' : 'Show'}
+            {showPassword ? <Eye /> : <EyeOff />}
           </button>
-        </div>
+        )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}
-      <button
+      <Button
         type="submit"
-        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        className="w-full rounded-md px-4 py-2"
       >
-        Sign Up
-      </button>
+        {isSubmitting ? 'Loading...' : 'Sign Up'}
+      </Button>
       <p className="mt-4 text-center text-sm text-gray-600">
         Already have an account?{' '}
         <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">

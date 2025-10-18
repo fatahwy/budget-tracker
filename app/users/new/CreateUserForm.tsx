@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
-import Link from 'next/link';
+'use client'
 
-export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void }) {
+import React, { useState } from 'react';
+import { FormInput } from '../../components/ui/FormInput';
+import { Button } from '@/app/components/ui/button';
+import { useRouter } from 'next/navigation';
+
+export function CreateUserForm() {
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,15 +28,15 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void })
       const data = await res.json();
 
       if (res.ok) {
-        onUserCreated();
+        router.push('/users');
         setUsername('');
         setEmail('');
         setPassword('');
       } else {
-        setError(data?.message ?? 'Gagal membuat pengguna');
+        setError(data?.message ?? 'Failed to create user');
       }
     } catch {
-      setError('Permintaan gagal');
+      setError('Request failed');
     } finally {
       setLoading(false);
     }
@@ -39,17 +45,20 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void })
   return (
     <form onSubmit={handleSubmit} className="space-y-2 mb-3">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Username</label>
-        <input
+        <FormInput
+          id="username"
+          label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
+          type="text"
           className="border rounded px-2 py-1 w-full"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-        <input
+        <FormInput
+          id="email"
+          label="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
@@ -58,8 +67,9 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void })
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
-        <input
+        <FormInput
+          id="password"
+          label="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
@@ -68,12 +78,12 @@ export function CreateUserForm({ onUserCreated }: { onUserCreated: () => void })
         />
       </div>
       <div className="flex space-x-2">
-        <Link href='/users' className="rounded-md bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400">
+        <Button type='button' onClick={() => router.push('/users')} className="rounded-md" variant='secondary'>
           Back
-        </Link>
-        <button type="submit" className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700" disabled={loading}>
-          {loading ? 'Creating...' : 'Create User'}
-        </button>
+        </Button>
+        <Button type="submit" className="rounded-md" disabled={loading}>
+          {loading ? 'Loading...' : 'Save'}
+        </Button>
       </div>
       {error && <div className="bg-red-100 text-red-700 p-2 rounded">{error}</div>}
     </form>

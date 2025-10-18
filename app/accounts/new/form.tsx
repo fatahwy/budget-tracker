@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FormInput } from '@/app/components/ui/FormInput';
 
 export function NewAccountForm() {
   const [name, setName] = useState('');
@@ -34,16 +35,7 @@ export function NewAccountForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-gray-700">
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Account Name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          required
-        />
-      </div>
+      <FormInput label="Account Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Account Name" />
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}
       <button

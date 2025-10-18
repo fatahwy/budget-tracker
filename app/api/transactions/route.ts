@@ -73,7 +73,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const { id, total, dateInput, note } = await req.json();
+    const { id, total, dateInput, isExpense, categoryId, note } = await req.json();
 
     if (!id) {
       return NextResponse.json({ message: 'Missing required field: id' }, { status: 400 });
@@ -84,9 +84,23 @@ export async function PATCH(req: Request) {
     const oldTotal = existing?.total ?? 0;
     const oldIsExpense = existing?.is_expense ?? false;
     const oldAccountId = existing?.account_id ?? (existing?.account as { id: string } | undefined)?.id;
+    const oldCategoryId = existing?.category_id;
 
     const newTotal = total ?? oldTotal;
     const newDate = dateInput ? new Date(dateInput) : existing?.date_input;
+
+    let finalCategoryId = categoryId;
+
+    // If categoryId is a string but not a valid ObjectId, it's a new category
+    if (categoryId && !categoryId.match(/^[0-9a-fA-F]{24}$/)) {
+      const newCategory = await prisma.category.create({
+        data: {
+          name: categoryId,
+          account: { connect: { id: oldAccountId } },
+        } as Prisma.CategoryCreateInput,
+      });
+      finalCategoryId = newCategory.id;
+    }
 
     const updated = await prisma.trx.update({
       where: { id },
@@ -94,6 +108,8 @@ export async function PATCH(req: Request) {
         total: newTotal,
         date_input: newDate ? new Date(newDate) : undefined,
         account_id: oldAccountId,
+        category_id: finalCategoryId || oldCategoryId,
+        is_expense: isExpense ?? oldIsExpense,
         note: note ?? undefined,
       },
     });
@@ -102,7 +118,7 @@ export async function PATCH(req: Request) {
     const oldAccountBal = await prisma.account.findUnique({ where: { id: oldAccountId } });
 
     const oldDelta = oldIsExpense ? -oldTotal : oldTotal;
-    const newIsExpense = existing?.is_expense ?? false;
+    const newIsExpense = isExpense;
     const newDeltaValue = newIsExpense ? -newTotal : newTotal;
 
     const oldBalanceValue = oldAccountBal?.balance ?? 0;
@@ -188,7 +204,7 @@ export async function GET(req: Request) {
 
     const total = await prisma.trx.count({ where: { account_id: accountId } });
 
-    return NextResponse.json({ transactions, total, page, limit }, { status: 200 });
+    return NextResponse.json({ data: transactions, total, page, limit }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });

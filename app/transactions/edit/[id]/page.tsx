@@ -1,18 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../api/auth/[...nextauth]/route';
 import { EditTransactionForm } from './form';
 export const metadata = { title: 'Update Transaction' };
 
 export default async function EditTransactionPage({ params }: { params: { id: string } }) {
     const prisma = new PrismaClient();
-    const session = await getServerSession(authOptions);
-    const accountId = session?.user?.defaultAccountId;
 
     const trxId = params?.id;
     const trx = await prisma.trx.findUnique({ where: { id: trxId }, include: { account: true, category: true } });
-
-    const categories = await prisma.category.findMany({ where: { account_id: accountId } });
 
     if (!trx) {
         return <div>Transaction not found</div>;
@@ -34,7 +28,7 @@ export default async function EditTransactionPage({ params }: { params: { id: st
     return (
         <div className="w-full max-w-md rounded-lg p-8 shadow-md">
             <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Update Transaction</h1>
-            <EditTransactionForm initial={initial} categories={categories} trxId={trxId} />
+            <EditTransactionForm initial={initial} trxId={trxId} />
         </div>
     );
 }
