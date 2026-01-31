@@ -10,6 +10,7 @@ export async function middleware(req: NextRequest) {
 
   // Allow Next.js internals and API auth routes to proceed without blocking
   if (
+    pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico')
