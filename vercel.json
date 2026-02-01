@@ -1,11 +1,9 @@
 {
+    "$schema": "https://openapi.vercel.sh/vercel.json",
     "crons": [
         {
             "path": "/api/cron/ping-db",
-            "schedule": "*/10 * * * *",
-            "headers": {
-                "authorization": "Bearer ${CRON_SECRET}"
-            }
+            "schedule": "0 1 * * *"
         }
     ]
 }
